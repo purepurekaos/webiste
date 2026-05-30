@@ -6,142 +6,103 @@
 <title>TLR</title>
 
 <style>
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    font-family: Arial, sans-serif;
-}
-
 body{
-    background:#fff;
-    color:#000;
+    background:#000;
+    color:#fff;
+    font-family: "Courier New", monospace;
+    margin:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
 }
 
-header{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:20px 50px;
-    border-bottom:1px solid #ddd;
+.container{
+    text-align:center;
 }
 
 .logo{
-    background:#d00;
-    color:white;
+    display:inline-block;
+    background:#fff;
+    color:#000;
+    padding:10px 25px;
+    font-size:38px;
     font-weight:bold;
-    padding:10px 20px;
-    font-size:24px;
+    margin-bottom:15px;
+    letter-spacing:2px;
 }
 
-nav a{
+.time{
+    font-size:13px;
+    margin-bottom:120px;
+}
+
+.menu{
+    text-align:left;
+    display:inline-block;
+}
+
+.menu a{
+    display:block;
+    color:white;
     text-decoration:none;
-    color:black;
-    margin-left:25px;
+    margin:18px 0;
     font-size:14px;
 }
 
-.hero{
-    height:80vh;
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:center;
+.menu a:hover{
+    text-decoration:underline;
+}
+
+.socials{
+    margin-top:40px;
     text-align:center;
 }
 
-.hero h1{
-    font-size:4rem;
-    margin-bottom:10px;
-}
-
-.hero p{
-    font-size:1.2rem;
-    color:#555;
-}
-
-.button{
-    margin-top:25px;
-    background:black;
-    color:white;
-    padding:12px 28px;
+.socials a{
+    color:#888;
     text-decoration:none;
-}
-
-.products{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-    gap:20px;
-    padding:50px;
-}
-
-.card{
-    border:1px solid #eee;
-}
-
-.card img{
-    width:100%;
-    height:300px;
-    object-fit:cover;
-}
-
-.card h3{
-    padding:15px;
-}
-
-.card p{
-    padding:0 15px 15px;
-}
-
-footer{
-    text-align:center;
-    padding:30px;
-    border-top:1px solid #ddd;
+    margin:0 8px;
 }
 </style>
 </head>
 <body>
 
-<header>
+<div class="container">
+
     <div class="logo">TLR</div>
 
-    <nav>
-        <a href="#">Shop</a>
-        <a href="#">Lookbook</a>
-        <a href="#">About</a>
-        <a href="#">Contact</a>
-    </nav>
-</header>
+    <div class="time" id="clock"></div>
 
-<section class="hero">
-    <h1>SPRING DROP</h1>
-    <p>New collection available now.</p>
-    <a href="#" class="button">SHOP NOW</a>
-</section>
-
-<section class="products">
-    <div class="card">
-        <img src="https://picsum.photos/400/500?1">
-        <h3>Graphic Tee</h3>
-        <p>£35</p>
+    <div class="menu">
+        <a href="#">news</a>
+        <a href="#">summer 2026 collection</a>
+        <a href="#">lookbook</a>
+        <a href="#">archive</a>
+        <a href="#">about</a>
+        <a href="#">store</a>
+        <a href="#">contact</a>
+        <a href="#">mailing list</a>
     </div>
 
-    <div class="card">
-        <img src="https://picsum.photos/400/500?2">
-        <h3>Hoodie</h3>
-        <p>£70</p>
+    <div class="socials">
+        <a href="#">instagram</a>
+        <a href="#">youtube</a>
+        <a href="#">spotify</a>
     </div>
 
-    <div class="card">
-        <img src="https://picsum.photos/400/500?3">
-        <h3>Cap</h3>
-        <p>£25</p>
-    </div>
-</section>
+</div>
 
-<footer>
-    © 2026 TLR
-</footer>
+<script>
+function updateClock(){
+    const now = new Date();
+    document.getElementById('clock').textContent =
+        now.toLocaleDateString() + " " +
+        now.toLocaleTimeString() + " GMT";
+}
+updateClock();
+setInterval(updateClock,1000);
+</script>
 
 </body>
 </html>
