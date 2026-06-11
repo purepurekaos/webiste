@@ -5,18 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TLR</title>
 <style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
 body{
-    background:#000;
     color:#fff;
     font-family: "Courier New", monospace;
-    margin:0;
     display:flex;
     justify-content:center;
     align-items:center;
     min-height:100vh;
+    overflow:hidden;
+}
+canvas{
+    position:fixed;
+    top:0;
+    left:0;
+    z-index:0;
 }
 .container{
     text-align:center;
+    position:relative;
+    z-index:1;
 }
 .menu{
     text-align:center;
@@ -69,6 +81,7 @@ body{
 </style>
 </head>
 <body>
+<canvas id="bg"></canvas>
 <div class="container">
     <div class="menu">
         <div class="menu-item">
@@ -96,6 +109,7 @@ body{
     <div class="time" id="clock"></div>
 </div>
 <script>
+// Clock
 function updateClock(){
     const now = new Date();
     document.getElementById('clock').textContent =
@@ -103,7 +117,69 @@ function updateClock(){
         now.toLocaleTimeString() + " GMT";
 }
 updateClock();
-setInterval(updateClock,1000);
+setInterval(updateClock, 1000);
+
+// Canvas setup
+const canvas = document.getElementById('bg');
+const ctx = canvas.getContext('2d');
+
+function resize(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Smooth noise using multiple sine layers
+function smoothNoise(x, y, t){
+    return (
+        Math.sin(x * 0.08 + t * 0.25) * 0.4 +
+        Math.sin(y * 0.1  + t * 0.2)  * 0.3 +
+        Math.sin((x + y) * 0.06 + t * 0.15) * 0.2 +
+        Math.sin((x - y) * 0.05 + t * 0.1)  * 0.1 +
+        Math.sin(x * 0.15 + y * 0.07 + t * 0.18) * 0.15 +
+        Math.sin(x * 0.04 + y * 0.13 + t * 0.12) * 0.1
+    );
+}
+
+let t = 0;
+
+function draw(){
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Draw wave terrain as horizontal flow lines
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+
+    const numLines = 120;
+    const lineSpacing = h / numLines;
+
+    for(let i = 0; i < numLines; i++){
+        const baseY = i * lineSpacing;
+        const depth = i / numLines; // 0 = top, 1 = bottom
+
+        ctx.beginPath();
+        for(let x = 0; x <= w; x += 3){
+            const n = smoothNoise(x, i * 2, t);
+            // Wave height increases slightly toward mid-screen
+            const amplitude = lineSpacing * (1.2 + Math.sin(depth * Math.PI) * 1.5);
+            const y = baseY + n * amplitude;
+            x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+
+        // Brightness: mid-waves slightly lighter, edges dark
+        const brightness = Math.floor(18 + Math.sin(depth * Math.PI) * 28);
+        ctx.strokeStyle = `rgb(${brightness},${brightness},${brightness})`;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+    }
+
+    t += 0.003; // very slow
+    requestAnimationFrame(draw);
+}
+
+draw();
 </script>
 </body>
 </html>
