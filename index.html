@@ -24,11 +24,13 @@ canvas{
     top:0;
     left:0;
     z-index:0;
+    will-change: transform;
 }
 .container{
     text-align:center;
     position:relative;
     z-index:1;
+    will-change: transform;
 }
 .menu{
     text-align:center;
@@ -36,21 +38,21 @@ canvas{
 }
 .menu-item{
     margin:18px 0;
-    overflow:hidden;
 }
 .menu-item a{
     display:block;
     color:white;
     text-decoration:none;
     font-size:14px;
+    transition: opacity 0.2s ease;
 }
 .menu-item a:hover{
-    text-decoration:underline;
+    opacity: 0.6;
 }
 .popup{
     max-height:0;
     overflow:hidden;
-    transition: max-height 0.3s ease, padding 0.3s ease;
+    transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1), padding 0.4s cubic-bezier(0.4,0,0.2,1);
     font-size:12px;
     color:#aaa;
     text-align:center;
@@ -69,6 +71,7 @@ canvas{
     color:#888;
     text-decoration:none;
     margin:0 8px;
+    transition: color 0.2s ease;
 }
 .socials a:hover{
     color:#fff;
@@ -109,7 +112,7 @@ canvas{
     <div class="time" id="clock"></div>
 </div>
 <script>
-// Clock
+// Clock — runs independently
 function updateClock(){
     const now = new Date();
     document.getElementById('clock').textContent =
@@ -119,9 +122,9 @@ function updateClock(){
 updateClock();
 setInterval(updateClock, 1000);
 
-// Canvas setup
+// Canvas
 const canvas = document.getElementById('bg');
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d', { alpha: false });
 
 function resize(){
     canvas.width = window.innerWidth;
@@ -130,56 +133,94 @@ function resize(){
 resize();
 window.addEventListener('resize', resize);
 
-// Smooth noise using multiple sine layers
-function smoothNoise(x, y, t){
-    return (
-        Math.sin(x * 0.08 + t * 0.25) * 0.4 +
-        Math.sin(y * 0.1  + t * 0.2)  * 0.3 +
-        Math.sin((x + y) * 0.06 + t * 0.15) * 0.2 +
-        Math.sin((x - y) * 0.05 + t * 0.1)  * 0.1 +
-        Math.sin(x * 0.15 + y * 0.07 + t * 0.18) * 0.15 +
-        Math.sin(x * 0.04 + y * 0.13 + t * 0.12) * 0.1
+// Perlin noise
+function fade(t){ return t*t*t*(t*(t*6-15)+10); }
+function lerp(a,b,t){ return a+t*(b-a); }
+function grad(hash,x,y){
+    const h=hash&3;
+    return ((h&1)?-(h<2?x:y):(h<2?x:y))+((h&2)?-(h<2?y:x):(h<2?y:x));
+}
+const p = new Uint8Array(256);
+for(let i=0;i<256;i++) p[i]=i;
+for(let i=255;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [p[i],p[j]]=[p[j],p[i]]; }
+const perm = new Uint8Array(512);
+for(let i=0;i<512;i++) perm[i]=p[i&255];
+
+function perlin(x,y){
+    const X=Math.floor(x)&255, Y=Math.floor(y)&255;
+    x-=Math.floor(x); y-=Math.floor(y);
+    const u=fade(x), v=fade(y);
+    const a=perm[X]+Y, b=perm[X+1]+Y;
+    return lerp(
+        lerp(grad(perm[a],x,y),   grad(perm[b],x-1,y),   u),
+        lerp(grad(perm[a+1],x,y-1),grad(perm[b+1],x-1,y-1),u),
+        v
     );
 }
 
-let t = 0;
+function fbm(x,y,oct){
+    let v=0,a=0.5,f=1,m=0;
+    for(let i=0;i<oct;i++){
+        v+=perlin(x*f,y*f)*a;
+        m+=a; a*=0.5; f*=2;
+    }
+    return v/m;
+}
 
-function draw(){
+// Offscreen canvas for double buffering
+const offscreen = document.createElement('canvas');
+const off = offscreen.getContext('2d', { alpha: false });
+
+let t = 0;
+let lastFrame = 0;
+
+function draw(timestamp){
+    // Throttle to ~30fps for the background — smooth enough, lighter on CPU
+    if(timestamp - lastFrame < 33){
+        requestAnimationFrame(draw);
+        return;
+    }
+    lastFrame = timestamp;
+
     const w = canvas.width;
     const h = canvas.height;
 
-    // Draw wave terrain as horizontal flow lines
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, w, h);
-
-    const numLines = 120;
-    const lineSpacing = h / numLines;
-
-    for(let i = 0; i < numLines; i++){
-        const baseY = i * lineSpacing;
-        const depth = i / numLines; // 0 = top, 1 = bottom
-
-        ctx.beginPath();
-        for(let x = 0; x <= w; x += 3){
-            const n = smoothNoise(x, i * 2, t);
-            // Wave height increases slightly toward mid-screen
-            const amplitude = lineSpacing * (1.2 + Math.sin(depth * Math.PI) * 1.5);
-            const y = baseY + n * amplitude;
-            x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-        }
-
-        // Brightness: mid-waves slightly lighter, edges dark
-        const brightness = Math.floor(18 + Math.sin(depth * Math.PI) * 28);
-        ctx.strokeStyle = `rgb(${brightness},${brightness},${brightness})`;
-        ctx.lineWidth = 1.2;
-        ctx.stroke();
+    if(offscreen.width !== w || offscreen.height !== h){
+        offscreen.width = w;
+        offscreen.height = h;
     }
 
-    t += 0.003; // very slow
+    off.fillStyle = '#000';
+    off.fillRect(0, 0, w, h);
+
+    const numLines = 140;
+    for(let i = 0; i < numLines; i++){
+        const baseY = (i / numLines) * h;
+        const depth = i / numLines;
+
+        off.beginPath();
+        let first = true;
+        for(let x = 0; x <= w; x += 4){
+            const n = fbm(x/w*3 + t*0.07, i/numLines*3 + t*0.04, 4);
+            const amp = (h/numLines) * (1.5 + Math.sin(depth*Math.PI)*3);
+            const y = baseY + n * amp;
+            if(first){ off.moveTo(x,y); first=false; }
+            else off.lineTo(x,y);
+        }
+        const b = Math.floor(10 + Math.sin(depth*Math.PI)*32);
+        off.strokeStyle = `rgb(${b},${b},${b})`;
+        off.lineWidth = 1;
+        off.stroke();
+    }
+
+    // Blit offscreen to main canvas in one go
+    ctx.drawImage(offscreen, 0, 0);
+
+    t += 0.0015;
     requestAnimationFrame(draw);
 }
 
-draw();
+requestAnimationFrame(draw);
 </script>
 </body>
 </html>
