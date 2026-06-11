@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TLR</title>
-
 <style>
 body{
     background:#000;
@@ -16,32 +15,13 @@ body{
     align-items:center;
     min-height:100vh;
 }
-
 .container{
     text-align:center;
 }
-
-.logo{
-    display:inline-block;
-    background:#fff;
-    color:#000;
-    padding:10px 25px;
-    font-size:38px;
-    font-weight:bold;
-    margin-bottom:15px;
-    letter-spacing:2px;
-}
-
-.time{
-    font-size:13px;
-    margin-bottom:120px;
-}
-
 .menu{
-    text-align:left;
+    text-align:center;
     display:inline-block;
 }
-
 .menu a{
     display:block;
     color:white;
@@ -49,46 +29,43 @@ body{
     margin:18px 0;
     font-size:14px;
 }
-
 .menu a:hover{
     text-decoration:underline;
 }
-
 .socials{
     margin-top:40px;
     text-align:center;
 }
-
 .socials a{
     color:#888;
     text-decoration:none;
     margin:0 8px;
 }
+.socials a:hover{
+    color:#fff;
+}
+.time{
+    font-size:13px;
+    margin-top:40px;
+    color:#888;
+}
 </style>
 </head>
 <body>
-
 <div class="container">
-
-    <div class="logo">TLR</div>
-
-    <div class="time" id="clock"></div>
-
     <div class="menu">
         <a href="#">about me</a>
         <a href="#">Qualifications</a>
         <a href="#">Interests</a>
         <a href="#">contact</a>
     </div>
-
     <div class="socials">
-        <a href="#">instagram</a>
-        <a href="#">youtube</a>
-        <a href="#">spotify</a>
+        <a href="https://www.instagram.com/lourt101?igsh=aTJmeDdqdmU2MHFj&utm_source=qr" target="_blank">instagram</a>
+        <a href="https://open.spotify.com/user/psvd7bljlz388mt36t0lz5l6i?si=45927fe03a7547ab" target="_blank">spotify</a>
+        <a href="https://github.com/purepurekaos" target="_blank">github</a>
     </div>
-
+    <div class="time" id="clock"></div>
 </div>
-
 <script>
 function updateClock(){
     const now = new Date();
@@ -99,6 +76,5 @@ function updateClock(){
 updateClock();
 setInterval(updateClock,1000);
 </script>
-
 </body>
 </html>
