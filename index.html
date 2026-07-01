@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TLR</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{color:#fff;font-family:"Courier New",monospace;display:flex;justify-content:center;align-items:center;min-height:100vh;overflow:hidden;background:#000;}
+canvas{position:fixed;top:0;left:0;z-index:0;}
+#ascii-layer{position:fixed;top:0;left:0;z-index:1;width:100%;height:100%;overflow:hidden;pointer-events:none;}
+#ascii-pre{position:absolute;top:0;left:0;font-family:"Courier New",monospace;font-size:11px;line-height:1.25;color:rgba(255,255,255,0.18);white-space:pre;pointer-events:none;letter-spacing:1px;transition:opacity 0.8s ease;}
+.container{text-align:center;position:relative;z-index:2;transition:opacity 0.4s ease,transform 0.4s ease;}
+.container.hidden{opacity:0;pointer-events:none;transform:scale(0.97);}
+.menu{text-align:center;display:inline-block;}
+.menu-item{margin:18px 0;}
+.menu-item a{display:block;color:white;text-decoration:none;font-size:14px;transition:opacity 0.2s ease;cursor:pointer;}
+.menu-item a:hover{opacity:0.6;}
+.popup{max-height:0;overflow:hidden;transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1),padding 0.4s cubic-bezier(0.4,0,0.2,1);font-size:12px;color:#aaa;text-align:center;padding:0;line-height:1.6;}
+.menu-item:hover .popup{max-height:100px;padding:8px 0;}
+.socials{margin-top:40px;text-align:center;}
+.socials a{color:#888;text-decoration:none;margin:0 8px;transition:color 0.2s ease;}
+.socials a:hover{color:#fff;}
+.time{font-size:13px;margin-top:40px;color:#888;}
+.panel{position:fixed;top:0;left:0;width:100%;height:100%;z-index:10;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity 0.5s ease,transform 0.5s ease;transform:translateY(20px);overflow-y:auto;}
+.panel.active{opacity:1;pointer-events:all;transform:translateY(0);}
+.panel-inner{flex:1;display:flex;flex-direction:column;padding:60px 80px;max-width:900px;margin:0 auto;width:100%;}
+.panel-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:60px;border-bottom:1px solid #222;padding-bottom:24px;}
+.panel-title{font-size:28px;font-weight:bold;letter-spacing:2px;text-transform:lowercase;}
+.panel-close{background:none;border:1px solid #333;color:#888;font-family:"Courier New",monospace;font-size:12px;padding:8px 16px;cursor:pointer;transition:color 0.2s,border-color 0.2s;letter-spacing:1px;}
+.panel-close:hover{color:#fff;border-color:#fff;}
+.panel-content{flex:1;color:#666;font-size:13px;line-height:2;}
+.panel-content .placeholder{border:1px dashed #222;padding:40px;text-align:center;color:#333;margin-bottom:24px;font-size:12px;letter-spacing:1px;}
+.panel-content .placeholder-img{height:200px;display:flex;align-items:center;justify-content:center;}
+.overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:9;opacity:0;pointer-events:none;transition:opacity 0.5s ease;}
+.overlay.active{opacity:1;pointer-events:all;}
+
+/* Upload UI */
+#upload-btn{position:fixed;bottom:28px;right:28px;z-index:3;background:none;border:1px solid #333;color:#666;font-family:"Courier New",monospace;font-size:11px;padding:8px 14px;cursor:pointer;letter-spacing:1px;transition:color 0.2s,border-color 0.2s;}
+#upload-btn:hover{color:#fff;border-color:#fff;}
+#upload-input{display:none;}
+#img-controls{position:fixed;bottom:28px;right:28px;z-index:3;display:none;flex-direction:column;align-items:flex-end;gap:8px;}
+#img-controls.visible{display:flex;}
+.ctrl-row{display:flex;align-items:center;gap:10px;font-size:11px;color:#555;letter-spacing:1px;}
+.ctrl-row label{color:#555;white-space:nowrap;}
+.ctrl-row input[type=range]{width:90px;accent-color:#fff;cursor:pointer;}
+.ctrl-row span{color:#888;min-width:28px;text-align:right;}
+.ctrl-btn{background:none;border:1px solid #333;color:#666;font-family:"Courier New",monospace;font-size:10px;padding:5px 10px;cursor:pointer;letter-spacing:1px;transition:color 0.2s,border-color 0.2s;}
+.ctrl-btn:hover{color:#fff;border-color:#fff;}
+#drop-overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:100;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;font-size:14px;letter-spacing:3px;color:#444;border:1px dashed #222;}
+#drop-overlay.show{display:flex;}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div id="ascii-layer"><pre id="ascii-pre"></pre></div>
+
+<div id="drop-overlay">[ drop image ]</div>
+
+<div class="container" id="main">
+  <div class="menu">
+    <div class="menu-item"><a onclick="openPanel('about')">about me</a><div class="popup">A little bit about who I am and what I do.</div></div>
+    <div class="menu-item"><a onclick="openPanel('qualifications')">Qualifications</a><div class="popup">My education, certifications, and experience.</div></div>
+    <div class="menu-item"><a onclick="openPanel('projects')">Projects</a><div class="popup">Things I've built and worked on.</div></div>
+    <div class="menu-item"><a onclick="openPanel('interests')">Interests</a><div class="popup">Things I'm passionate about outside of work.</div></div>
+    <div class="menu-item"><a onclick="openPanel('contact')">contact</a><div class="popup">Get in touch — always open to new opportunities.</div></div>
+  </div>
+  <div class="socials">
+    <a href="https://www.instagram.com/lourt101?igsh=aTJmeDdqdmU2MHFj&utm_source=qr" target="_blank">instagram</a>
+    <a href="https://open.spotify.com/user/psvd7bljlz388mt36t0lz5l6i?si=45927fe03a7547ab" target="_blank">spotify</a>
+    <a href="https://github.com/purepurekaos" target="_blank">github</a>
+  </div>
+  <div class="time" id="clock"></div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+
+<div class="panel" id="panel-about"><div class="panel-inner"><div class="panel-header"><div class="panel-title">about me</div><button class="panel-close" onclick="closePanel()">✕ close</button></div><div class="panel-content"><div class="placeholder">[ your text goes here ]</div><div class="placeholder placeholder-img">[ photo / image ]</div><div class="placeholder">[ more text goes here ]</div></div></div></div>
+<div class="panel" id="panel-qualifications"><div class="panel-inner"><div class="panel-header"><div class="panel-title">qualifications</div><button class="panel-close" onclick="closePanel()">✕ close</button></div><div class="panel-content"><div class="placeholder">[ your qualifications go here ]</div><div class="placeholder placeholder-img">[ certificates / images ]</div><div class="placeholder">[ additional detail ]</div></div></div></div>
+<div class="panel" id="panel-projects"><div class="panel-inner"><div class="panel-header"><div class="panel-title">projects</div><button class="panel-close" onclick="closePanel()">✕ close</button></div><div class="panel-content"><div class="placeholder">[ project name / description ]</div><div class="placeholder placeholder-img">[ screenshot / demo ]</div><div class="placeholder">[ links / tech stack ]</div></div></div></div>
+<div class="panel" id="panel-interests"><div class="panel-inner"><div class="panel-header"><div class="panel-title">interests</div><button class="panel-close" onclick="closePanel()">✕ close</button></div><div class="panel-content"><div class="placeholder">[ your interests go here ]</div><div class="placeholder placeholder-img">[ photo / image ]</div><div class="placeholder">[ more text goes here ]</div></div></div></div>
+<div class="panel" id="panel-contact"><div class="panel-inner"><div class="panel-header"><div class="panel-title">contact</div><button class="panel-close" onclick="closePanel()">✕ close</button></div><div class="panel-content"><div class="placeholder">[ your contact info goes here ]</div><div class="placeholder">[ email / links / form ]</div></div></div></div>
+
+<button id="upload-btn" onclick="document.getElementById('upload-input').click()">+ image</button>
+<input type="file" id="upload-input" accept="image/*">
+
+<div id="img-controls">
+  <div class="ctrl-row"><label>brightness</label><input type="range" id="ctrl-brightness" min="-100" max="100" value="0"><span id="val-brightness">0</span></div>
+  <div class="ctrl-row"><label>contrast</label><input type="range" id="ctrl-contrast" min="-100" max="100" value="0"><span id="val-contrast">0</span></div>
+  <div class="ctrl-row"><label>density</label><input type="range" id="ctrl-density" min="1" max="3" value="2" step="0.1"><span id="val-density">2</span></div>
+  <div class="ctrl-row"><label>opacity</label><input type="range" id="ctrl-opacity" min="5" max="60" value="18"><span id="val-opacity">18</span></div>
+  <div class="ctrl-row" style="gap:6px;">
+    <button class="ctrl-btn" onclick="document.getElementById('upload-input').click()">change</button>
+    <button class="ctrl-btn" onclick="clearImage()">clear</button>
+  </div>
+</div>
+
+<script>
+// Clock
+function updateClock(){const now=new Date();document.getElementById('clock').textContent=now.toLocaleDateString()+" "+now.toLocaleTimeString()+" GMT";}
+updateClock();setInterval(updateClock,1000);
+
+// Panels
+function openPanel(name){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.getElementById('panel-'+name).classList.add('active');document.getElementById('overlay').classList.add('active');document.getElementById('main').classList.add('hidden');}
+function closePanel(){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.getElementById('overlay').classList.remove('active');document.getElementById('main').classList.remove('hidden');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePanel();});
+
+// Perlin
+const canvas=document.getElementById('bg');
+const ctx=canvas.getContext('2d',{alpha:false});
+function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;resizeAscii();}
+resize();window.addEventListener('resize',resize);
+function fade(t){return t*t*t*(t*(t*6-15)+10);}
+function lerp(a,b,t){return a+t*(b-a);}
+function grad(hash,x,y){const h=hash&3;return((h&1)?-(h<2?x:y):(h<2?x:y))+((h&2)?-(h<2?y:x):(h<2?y:x));}
+const p=new Uint8Array(256);for(let i=0;i<256;i++)p[i]=i;for(let i=255;i>0;i--){const j=Math.floor(Math.random()*(i+1));[p[i],p[j]]=[p[j],p[i]];}
+const perm=new Uint8Array(512);for(let i=0;i<512;i++)perm[i]=p[i&255];
+function perlin(x,y){const X=Math.floor(x)&255,Y=Math.floor(y)&255;x-=Math.floor(x);y-=Math.floor(y);const u=fade(x),v=fade(y);const a=perm[X]+Y,b=perm[X+1]+Y;return lerp(lerp(grad(perm[a],x,y),grad(perm[b],x-1,y),u),lerp(grad(perm[a+1],x,y-1),grad(perm[b+1],x-1,y-1),u),v);}
+function fbm(x,y,oct){let v=0,a=0.5,f=1,m=0;for(let i=0;i<oct;i++){v+=perlin(x*f,y*f)*a;m+=a;a*=0.5;f*=2;}return v/m;}
+const offscreen=document.createElement('canvas');
+const off=offscreen.getContext('2d',{alpha:false});
+let t=0;
+function drawWaves(){
+  const w=canvas.width,h=canvas.height;
+  if(offscreen.width!==w||offscreen.height!==h){offscreen.width=w;offscreen.height=h;}
+  off.fillStyle='#000';off.fillRect(0,0,w,h);
+  const numLines=140;
+  for(let i=0;i<numLines;i++){
+    const baseY=(i/numLines)*h,depth=i/numLines;
+    off.beginPath();let first=true;
+    for(let x=0;x<=w;x+=4){
+      const n=fbm(x/w*3+t*0.07,i/numLines*3+t*0.04,4);
+      const amp=(h/numLines)*(1.5+Math.sin(depth*Math.PI)*3);
+      const y=baseY+n*amp;
+      if(first){off.moveTo(x,y);first=false;}else off.lineTo(x,y);
+    }
+    const b=Math.floor(10+Math.sin(depth*Math.PI)*32);
+    off.strokeStyle=`rgb(${b},${b},${b})`;off.lineWidth=1;off.stroke();
+  }
+  ctx.drawImage(offscreen,0,0);
+  t+=0.0015;
+}
+
+// ASCII
+const ASCII_CHARS=' .,:;+*?%S#@';
+const pre=document.getElementById('ascii-pre');
+let cols=0,rows=0,asciiT=0;
+const CHAR_W=7.2,CHAR_H=13.75;
+let imagePixels=null,imgW=0,imgH=0;
+let brightness=0,contrast=0,density=2,opacityVal=18;
+
+const p2=new Uint8Array(256);for(let i=0;i<256;i++)p2[i]=i;for(let i=255;i>0;i--){const j=Math.floor(Math.random()*(i+1));[p2[i],p2[j]]=[p2[j],p2[i]];}
+const perm2=new Uint8Array(512);for(let i=0;i<512;i++)perm2[i]=p2[i&255];
+function perlin2(x,y){const X=Math.floor(x)&255,Y=Math.floor(y)&255;x-=Math.floor(x);y-=Math.floor(y);const u=fade(x),v=fade(y);const a=perm2[X]+Y,b=perm2[X+1]+Y;return lerp(lerp(grad(perm2[a],x,y),grad(perm2[b],x-1,y),u),lerp(grad(perm2[a+1],x,y-1),grad(perm2[b+1],x-1,y-1),u),v);}
+function fbm2(x,y,oct){let v=0,a=0.5,f=1,m=0;for(let i=0;i<oct;i++){v+=perlin2(x*f,y*f)*a;m+=a;a*=0.5;f*=2;}return v/m;}
+
+function resizeAscii(){
+  cols=Math.floor(window.innerWidth/CHAR_W)+1;
+  rows=Math.floor(window.innerHeight/CHAR_H)+1;
+}
+
+function samplePixel(col,row){
+  if(!imagePixels) return null;
+  const scaleX=imgW/cols,scaleY=imgH/rows;
+  const scale=Math.min(scaleX,scaleY)*density;
+  const offX=(imgW-cols*scale)/2,offY=(imgH-rows*scale)/2;
+  const px=Math.floor(col*scale+offX),py=Math.floor(row*scale+offY);
+  if(px<0||px>=imgW||py<0||py>=imgH) return 0;
+  const idx=(py*imgW+px)*4;
+  let lum=0.299*imagePixels[idx]+0.587*imagePixels[idx+1]+0.114*imagePixels[idx+2];
+  lum=lum+brightness;
+  const f=(259*(contrast+255))/(255*(259-contrast));
+  lum=f*(lum-128)+128;
+  return Math.max(0,Math.min(255,lum));
+}
+
+function lumToChar(lum){
+  const idx=Math.floor((lum/255)*(ASCII_CHARS.length-1));
+  return ASCII_CHARS[Math.min(idx,ASCII_CHARS.length-1)];
+}
+
+let lastDraw=0;
+function drawAscii(ts){
+  if(ts-lastDraw<80) return;
+  lastDraw=ts;
+  pre.style.color=`rgba(255,255,255,${opacityVal/100})`;
+  let out='';
+  if(imagePixels){
+    for(let row=0;row<rows;row++){
+      for(let col=0;col<cols;col++){out+=lumToChar(samplePixel(col,row));}
+      out+='\n';
+    }
+  } else {
+    for(let row=0;row<rows;row++){
+      for(let col=0;col<cols;col++){
+        const n=(fbm2(col/cols*4+asciiT*0.05,row/rows*4+asciiT*0.03,3)+1)/2;
+        out+=ASCII_CHARS[Math.min(Math.floor(n*ASCII_CHARS.length),ASCII_CHARS.length-1)];
+      }
+      out+='\n';
+    }
+    asciiT+=0.04;
+  }
+  pre.textContent=out;
+}
+
+function loop(ts){drawWaves();drawAscii(ts);requestAnimationFrame(loop);}
+requestAnimationFrame(loop);
+
+// Image upload
+const offImg=document.createElement('canvas');
+const offImgCtx=offImg.getContext('2d');
+
+function loadImage(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const maxW=Math.min(img.width,1200);
+      const scale=maxW/img.width;
+      imgW=Math.floor(img.width*scale);
+      imgH=Math.floor(img.height*scale);
+      offImg.width=imgW;offImg.height=imgH;
+      offImgCtx.drawImage(img,0,0,imgW,imgH);
+      imagePixels=offImgCtx.getImageData(0,0,imgW,imgH).data;
+      document.getElementById('upload-btn').style.display='none';
+      document.getElementById('img-controls').classList.add('visible');
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById('upload-input').addEventListener('change',e=>{
+  if(e.target.files[0]) loadImage(e.target.files[0]);
+});
+
+function clearImage(){
+  imagePixels=null;imgW=0;imgH=0;
+  document.getElementById('upload-btn').style.display='';
+  document.getElementById('img-controls').classList.remove('visible');
+  document.getElementById('upload-input').value='';
+}
+
+function bindSlider(id,valId,setter){
+  const el=document.getElementById(id);
+  const val=document.getElementById(valId);
+  el.addEventListener('input',()=>{val.textContent=el.value;setter(parseFloat(el.value));lastDraw=0;});
+}
+bindSlider('ctrl-brightness','val-brightness',v=>{brightness=v;});
+bindSlider('ctrl-contrast','val-contrast',v=>{contrast=v;});
+bindSlider('ctrl-density','val-density',v=>{density=v;});
+bindSlider('ctrl-opacity','val-opacity',v=>{opacityVal=v;});
+
+// Drag and drop
+document.addEventListener('dragover',e=>{e.preventDefault();document.getElementById('drop-overlay').classList.add('show');});
+document.addEventListener('dragleave',e=>{if(!e.relatedTarget)document.getElementById('drop-overlay').classList.remove('show');});
+document.addEventListener('drop',e=>{
+  e.preventDefault();
+  document.getElementById('drop-overlay').classList.remove('show');
+  const file=e.dataTransfer.files[0];
+  if(file&&file.type.startsWith('image/')) loadImage(file);
+});
+</script>
+</body>
+</html>
