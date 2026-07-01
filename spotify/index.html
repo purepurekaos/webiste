@@ -20,6 +20,11 @@ a{color:inherit;}
 .btn:hover{color:#fff;border-color:#fff;}
 .btn:disabled{opacity:0.3;cursor:default;pointer-events:none;}
 .actions{display:flex;flex-wrap:wrap;gap:8px;}
+.viz-controls{display:flex;flex-direction:column;gap:14px;border-top:1px solid #222;padding-top:20px;}
+.field{display:flex;flex-direction:column;gap:6px;}
+.field-label{display:flex;justify-content:space-between;font-size:11px;letter-spacing:1px;color:#666;}
+.field-label .val{color:#999;}
+input[type=range]{width:100%;accent-color:#fff;cursor:pointer;}
 
 .np{display:none;flex-direction:column;gap:14px;border-top:1px solid #222;padding-top:20px;}
 .np.visible{display:flex;}
@@ -28,6 +33,8 @@ a{color:inherit;}
 .np-artist{color:#666;font-size:12px;}
 .np-status{font-size:10px;letter-spacing:1px;color:#555;}
 .progress-row{display:flex;flex-direction:column;gap:6px;}
+.np-stats{display:flex;gap:14px;flex-wrap:wrap;font-size:10px;color:#666;letter-spacing:1px;}
+.np-stats b{color:#999;font-weight:normal;}
 .progress-bar{height:3px;background:#222;position:relative;}
 .progress-fill{height:100%;background:#888;width:0%;}
 .progress-time{font-size:10px;color:#555;letter-spacing:1px;display:flex;justify-content:space-between;}
@@ -87,10 +94,30 @@ a{color:inherit;}
         <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
         <div class="progress-time"><span id="progress-current">0:00</span><span id="progress-total">0:00</span></div>
       </div>
+      <div class="np-stats" id="np-stats"></div>
       <div class="np-status" id="np-status">demo mode</div>
     </div>
 
-    <div class="hint">the equalizer isn't real audio data &mdash; spotify doesn't expose the raw stream. it's a pattern generated from track tempo/energy (when available) so it feels reactive per song.</div>
+    <div class="viz-controls">
+      <div class="field">
+        <div class="field-label">thickness <span class="val" id="val-thickness">2</span></div>
+        <input type="range" id="ctrl-thickness" min="1" max="5" value="2">
+      </div>
+      <div class="field">
+        <div class="field-label">amplitude <span class="val" id="val-amplitude">1</span></div>
+        <input type="range" id="ctrl-amplitude" min="0.2" max="2.5" step="0.1" value="1">
+      </div>
+      <div class="field">
+        <div class="field-label">speed <span class="val" id="val-speed">1</span></div>
+        <input type="range" id="ctrl-speed" min="0.2" max="3" step="0.1" value="1">
+      </div>
+      <div class="field">
+        <div class="field-label">density <span class="val" id="val-density">14</span></div>
+        <input type="range" id="ctrl-density" min="4" max="28" value="14">
+      </div>
+    </div>
+
+    <div class="hint">the waves aren't real audio data &mdash; spotify doesn't expose the raw stream. it's a pattern generated from track tempo/energy (when available) so it feels reactive per song.</div>
   </div>
 
   <div class="main">
@@ -134,8 +161,9 @@ function hashSeed(str){
   return (h>>>0)/4294967295*1000;
 }
 
-// ---------- ascii equalizer ----------
-const BLOCKS=' ▁▂▃▄▅▆▇█';
+// ---------- ascii wave visualizer ----------
+const ASCII_CHARS=' .,:;+*?%S#@';
+let vizWaveCount=14,vizThickness=2,vizAmplitude=1,vizSpeed=1;
 const vizEl=document.getElementById('viz');
 const vizWrap=document.getElementById('viz-wrap');
 const CHAR_W=6.6,CHAR_H=12;
@@ -151,33 +179,40 @@ fitViz();
 
 let track=null; // {name,artist,tempo,energy,durationMs,progressMsAtPoll,lastPollTime,isPlaying,seed}
 
-function computeBarHeight(col,t){
-  if(!track||!track.isPlaying){
-    // idle ambient noise when nothing is playing
-    return Math.max(0,(fbm(col*0.12,t*0.15,3)+1)/2*0.35);
-  }
-  const bpm=track.tempo||120;
-  const energy=track.energy!=null?track.energy:0.6;
-  const seed=track.seed||0;
-  const hz=bpm/60;
-  const phase=col*0.35+seed;
-  const wave=(Math.sin(t*hz*Math.PI*2+phase)*0.5+0.5);
-  const noise=(fbm(col*0.18+seed,t*0.4,3)+1)/2;
-  const beatPulse=Math.pow(Math.max(0,Math.sin(t*hz*Math.PI)),10);
-  let h=0.15+0.45*wave*energy+0.2*noise+0.35*beatPulse*energy;
-  return Math.max(0,Math.min(1,h));
-}
-
+// layered horizontal wave lines. each line is a real sine wave (so it unmistakably
+// reads as "waves going up and down") with a smaller fbm-noise term layered on top
+// for organic variation, same technique family as the homepage canvas background —
+// depth-based amplitude/brightness, reacting to track tempo/energy when playing.
 function renderViz(tSeconds){
   const grid=[];
   for(let r=0;r<vizRows;r++)grid.push(new Array(vizCols).fill(' '));
-  for(let c=0;c<vizCols;c++){
-    const h=computeBarHeight(c,tSeconds);
-    const filled=h*vizRows;
-    const full=Math.floor(filled);
-    const frac=filled-full;
-    for(let r=0;r<full&&r<vizRows;r++){grid[vizRows-1-r][c]=BLOCKS[BLOCKS.length-1];}
-    if(full<vizRows){grid[vizRows-1-full][c]=BLOCKS[Math.round(frac*(BLOCKS.length-1))];}
+  const playing=track&&track.isPlaying;
+  const bpm=playing?(track.tempo||120):40;
+  const energy=playing?(track.energy!=null?track.energy:0.6):0.22;
+  const seed=track?track.seed:0;
+  const hz=bpm/60;
+  const beatPulse=playing?Math.pow(Math.max(0,Math.sin(tSeconds*hz*Math.PI)),8):0;
+  const energyBoost=(0.5+energy*1.2+beatPulse*energy*1.5)*vizAmplitude;
+  const halfThick=Math.floor(vizThickness/2);
+  for(let i=0;i<vizWaveCount;i++){
+    const depth=i/Math.max(1,vizWaveCount-1);
+    const baseRow=depth*(vizRows-1);
+    const ampRows=(vizRows/vizWaveCount)*(1.2+Math.sin(depth*Math.PI)*2.5)*energyBoost;
+    const freq=1.2+depth*1.6+(seed%1);
+    const phase=i*0.9+seed;
+    const charIdx=Math.max(0,Math.min(ASCII_CHARS.length-1,Math.round((0.15+Math.sin(depth*Math.PI)*0.85)*(ASCII_CHARS.length-1))));
+    const ch=ASCII_CHARS[charIdx];
+    if(ch===' ')continue;
+    for(let c=0;c<vizCols;c++){
+      const sine=Math.sin(c/vizCols*Math.PI*2*freq+tSeconds*vizSpeed*(0.6+depth*0.5)+phase);
+      const noise=fbm(c/vizCols*3+tSeconds*0.07*vizSpeed+seed,depth*3+tSeconds*0.04*vizSpeed+i*0.15,3);
+      const y=baseRow+(sine*0.7+noise*0.3)*ampRows;
+      const rowCenter=Math.round(y);
+      for(let dr=-halfThick;dr<=halfThick;dr++){
+        const row=rowCenter+dr;
+        if(row>=0&&row<vizRows)grid[row][c]=ch;
+      }
+    }
   }
   return grid.map(row=>row.join('')).join('\n');
 }
@@ -197,6 +232,18 @@ requestAnimationFrame(loop);
 function formatMs(ms){
   const s=Math.max(0,Math.floor(ms/1000));
   return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+}
+const KEY_NAMES=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+function renderStats(t){
+  const parts=['<span>length <b>'+formatMs(t.durationMs)+'</b></span>'];
+  if(t.hasFeatures){
+    parts.push('<span>bpm <b>'+Math.round(t.tempo)+'</b></span>');
+    parts.push('<span>energy <b>'+Math.round(t.energy*100)+'%</b></span>');
+    if(t.keyLabel)parts.push('<span>key <b>'+t.keyLabel+'</b></span>');
+  }else{
+    parts.push('<span>bpm <b>n/a</b></span>');
+  }
+  document.getElementById('np-stats').innerHTML=parts.join('');
 }
 function updateProgress(){
   if(!track)return;
@@ -254,9 +301,9 @@ function generateDemoArt(seed){
 
 // ---------- demo mode ----------
 const DEMO_TRACKS=[
-  {name:'Digital Horizon',artist:'Demo Artist',tempo:128,energy:0.85,durationMs:212000},
-  {name:'Late Night Static',artist:'Demo Artist',tempo:92,energy:0.4,durationMs:198000},
-  {name:'Kernel Panic',artist:'Demo Artist',tempo:145,energy:0.95,durationMs:180000},
+  {name:'Digital Horizon',artist:'Demo Artist',tempo:128,energy:0.85,durationMs:212000,keyLabel:'A♯m'},
+  {name:'Late Night Static',artist:'Demo Artist',tempo:92,energy:0.4,durationMs:198000,keyLabel:'D'},
+  {name:'Kernel Panic',artist:'Demo Artist',tempo:145,energy:0.95,durationMs:180000,keyLabel:'F♯m'},
 ];
 let demoIndex=0;
 
@@ -267,16 +314,26 @@ function startDemoTrack(){
   track={
     name:d.name,artist:d.artist,tempo:d.tempo,energy:d.energy,
     durationMs:d.durationMs,progressMsAtPoll:0,lastPollTime:performance.now(),
-    isPlaying:true,seed,
+    isPlaying:true,seed,hasFeatures:true,keyLabel:d.keyLabel,
   };
   document.getElementById('np').classList.add('visible');
   document.getElementById('np-title').textContent=d.name;
   document.getElementById('np-artist').textContent=d.artist;
   document.getElementById('np-status').textContent='demo mode — not real spotify data';
   document.getElementById('np-art').textContent=generateDemoArt(seed);
+  renderStats(track);
 }
 
 document.getElementById('demo-btn').addEventListener('click',startDemoTrack);
+
+function bindVizSlider(id,valId,setter){
+  const el=document.getElementById(id),val=document.getElementById(valId);
+  el.addEventListener('input',()=>{val.textContent=el.value;setter(parseFloat(el.value));});
+}
+bindVizSlider('ctrl-thickness','val-thickness',v=>{vizThickness=v;});
+bindVizSlider('ctrl-amplitude','val-amplitude',v=>{vizAmplitude=v;});
+bindVizSlider('ctrl-speed','val-speed',v=>{vizSpeed=v;});
+bindVizSlider('ctrl-density','val-density',v=>{vizWaveCount=v;});
 
 // ---------- real spotify auth (PKCE, no client secret / no backend needed) ----------
 const CLIENT_ID='0d3f954e3f494738991f7982706e3cf3';
@@ -405,6 +462,7 @@ async function applyTrackData(data){
     track=null;
     document.getElementById('np').classList.remove('visible');
     document.getElementById('np-status').textContent='nothing playing';
+    document.getElementById('np-stats').innerHTML='';
     return;
   }
   const item=data.item;
@@ -425,12 +483,15 @@ async function applyTrackData(data){
       energy:features?features.energy:0.6,
       durationMs:item.duration_ms,
       seed:hashSeed(item.id),
+      hasFeatures:!!features,
+      keyLabel:features&&features.key!=null&&features.key>=0?KEY_NAMES[features.key]+(features.mode===0?'m':''):null,
     };
     document.getElementById('np-title').textContent=track.name;
     document.getElementById('np-artist').textContent=track.artist;
     document.getElementById('np-art').textContent=artAscii;
     document.getElementById('np-status').textContent=features?'live — spotify tempo/energy':'live — tempo/energy unavailable, using defaults';
     document.getElementById('np').classList.add('visible');
+    renderStats(track);
   }
   track.progressMsAtPoll=data.progress_ms;
   track.lastPollTime=performance.now();
