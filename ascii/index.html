@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ascii / gif to ascii art generator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#000;color:#fff;font-family:"Courier New",monospace;min-height:100vh;overflow-x:hidden;}
+a{color:inherit;}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:1px solid #222;}
+.topbar .back{color:#888;text-decoration:none;font-size:13px;letter-spacing:1px;transition:color 0.2s;}
+.topbar .back:hover{color:#fff;}
+.topbar .title{font-size:13px;letter-spacing:2px;color:#666;text-transform:lowercase;}
+.layout{display:flex;min-height:calc(100vh - 65px);}
+.sidebar{width:300px;flex-shrink:0;border-right:1px solid #222;padding:24px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;max-height:calc(100vh - 65px);}
+.main{flex:1;display:flex;flex-direction:column;padding:24px;min-width:0;}
+
+.dropzone{border:1px dashed #333;padding:24px 12px;text-align:center;font-size:11px;letter-spacing:1px;color:#555;cursor:pointer;transition:border-color 0.2s,color 0.2s;}
+.dropzone:hover,.dropzone.drag{border-color:#666;color:#999;}
+.dropzone input{display:none;}
+
+.field{display:flex;flex-direction:column;gap:6px;}
+.field-label{display:flex;justify-content:space-between;font-size:11px;letter-spacing:1px;color:#666;}
+.field-label span.val{color:#999;}
+select,input[type=text]{background:#0a0a0a;border:1px solid #333;color:#ccc;font-family:"Courier New",monospace;font-size:12px;padding:6px 8px;}
+input[type=range]{width:100%;accent-color:#fff;cursor:pointer;}
+.checkbox-row{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:1px;color:#888;cursor:pointer;}
+.checkbox-row input{accent-color:#fff;cursor:pointer;}
+
+.info{font-size:11px;color:#555;line-height:1.7;border-top:1px solid #222;padding-top:14px;}
+.info div{display:flex;justify-content:space-between;gap:12px;}
+.info .k{color:#555;}
+.info .v{color:#999;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px;}
+
+.playback{display:none;align-items:center;gap:10px;border-top:1px solid #222;padding-top:14px;}
+.playback.visible{display:flex;}
+.playback .counter{font-size:11px;color:#666;}
+
+.btn{background:none;border:1px solid #333;color:#888;font-family:"Courier New",monospace;font-size:11px;padding:8px 12px;cursor:pointer;letter-spacing:1px;transition:color 0.2s,border-color 0.2s;}
+.btn:hover{color:#fff;border-color:#fff;}
+.btn:disabled{opacity:0.3;cursor:default;pointer-events:none;}
+.actions{display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid #222;padding-top:14px;}
+
+.output-wrap{flex:1;border:1px solid #222;padding:16px;overflow:auto;display:flex;align-items:flex-start;justify-content:flex-start;background:#000;position:relative;}
+#output{font-family:"Courier New",monospace;line-height:1.15;white-space:pre;color:#ddd;}
+.empty-msg{color:#333;font-size:12px;letter-spacing:1px;margin:auto;}
+.status{position:absolute;bottom:10px;right:14px;font-size:10px;color:#555;letter-spacing:1px;opacity:0;transition:opacity 0.3s;}
+.status.show{opacity:1;}
+
+@media (max-width:800px){
+  .layout{flex-direction:column;}
+  .sidebar{width:100%;max-height:none;border-right:none;border-bottom:1px solid #222;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="back" href="../index.html">&larr; back</a>
+  <div class="title">gif / image &rarr; ascii</div>
+  <div style="width:60px"></div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <label class="dropzone" id="dropzone">
+      [ drop png / jpeg / gif here, or click to browse ]
+      <input type="file" id="file-input" accept="image/png,image/jpeg,image/gif">
+    </label>
+
+    <div class="field">
+      <div class="field-label">charset</div>
+      <select id="charset-select">
+        <option value="standard" selected>standard</option>
+        <option value="blocks">blocks</option>
+        <option value="minimal">minimal</option>
+        <option value="binary">binary</option>
+        <option value="custom">custom&hellip;</option>
+      </select>
+    </div>
+    <div class="field" id="custom-charset-field" style="display:none;">
+      <div class="field-label">custom (dark &rarr; light)</div>
+      <input type="text" id="custom-charset" value=" .:-=+*#%@">
+    </div>
+
+    <div class="field">
+      <div class="field-label">columns <span class="val" id="val-cols">100</span></div>
+      <input type="range" id="ctrl-cols" min="20" max="220" value="100">
+    </div>
+    <div class="field">
+      <div class="field-label">brightness <span class="val" id="val-brightness">0</span></div>
+      <input type="range" id="ctrl-brightness" min="-100" max="100" value="0">
+    </div>
+    <div class="field">
+      <div class="field-label">contrast <span class="val" id="val-contrast">0</span></div>
+      <input type="range" id="ctrl-contrast" min="-100" max="100" value="0">
+    </div>
+    <button class="btn" id="auto-levels-btn" disabled>auto levels</button>
+
+    <label class="checkbox-row"><input type="checkbox" id="ctrl-invert">invert</label>
+    <label class="checkbox-row"><input type="checkbox" id="ctrl-color">colorize</label>
+
+    <div class="playback" id="playback">
+      <button class="btn" id="play-btn">pause</button>
+      <span class="counter" id="frame-counter">0 / 0</span>
+    </div>
+
+    <div class="info" id="info" style="display:none;">
+      <div><span class="k">file</span><span class="v" id="info-name">&mdash;</span></div>
+      <div><span class="k">size</span><span class="v" id="info-size">&mdash;</span></div>
+      <div><span class="k">frames</span><span class="v" id="info-frames">&mdash;</span></div>
+      <div><span class="k">grid</span><span class="v" id="info-grid">&mdash;</span></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="copy-btn" disabled>copy</button>
+      <button class="btn" id="download-btn" disabled>download .txt</button>
+      <button class="btn" id="export-btn" disabled>export html</button>
+      <button class="btn" id="clear-btn" disabled>clear</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="output-wrap" id="output-wrap">
+      <pre id="output"></pre>
+      <div class="empty-msg" id="empty-msg">nothing loaded yet</div>
+      <div class="status" id="status"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CHARSETS={
+  standard:' .,:;+*?%S#@',
+  blocks:' ░▒▓█',
+  minimal:' .:-=+*#%@',
+  binary:' 01',
+};
+const CHAR_ASPECT=0.55;
+
+function escapeHtml(s){
+  return s.replace(/[&<>]/g,c=>c==='&'?'&amp;':c==='<'?'&lt;':'&gt;');
+}
+
+// ---------- GIF decoder (GIF87a/89a, minimal but spec-correct) ----------
+function lzwDecode(minCodeSize,data,pixelCount){
+  const clearCode=1<<minCodeSize;
+  const eoiCode=clearCode+1;
+  let codeSize,dictSize;
+  const dictPrefix=new Int32Array(4096);
+  const dictSuffix=new Uint8Array(4096);
+  function resetDict(){
+    dictSize=eoiCode+1;
+    codeSize=minCodeSize+1;
+    for(let i=0;i<clearCode;i++){dictPrefix[i]=-1;dictSuffix[i]=i;}
+  }
+  resetDict();
+  function codeToBytes(code){
+    const out=[];
+    while(code>=clearCode+2){
+      out.push(dictSuffix[code]);
+      code=dictPrefix[code];
+      if(code===-1)break;
+    }
+    out.push(dictSuffix[code]);
+    out.reverse();
+    return out;
+  }
+  const output=new Uint8Array(pixelCount);
+  let outPos=0,bitBuf=0,bitCount=0,pos=0,prevCode=-1;
+  function readCode(){
+    while(bitCount<codeSize){
+      const b=pos<data.length?data[pos]:0;
+      pos++;
+      bitBuf|=(b<<bitCount);
+      bitCount+=8;
+    }
+    const code=bitBuf&((1<<codeSize)-1);
+    bitBuf>>=codeSize;
+    bitCount-=codeSize;
+    return code;
+  }
+  while(outPos<pixelCount&&pos<=data.length){
+    const code=readCode();
+    if(code===clearCode){resetDict();prevCode=-1;continue;}
+    if(code===eoiCode)break;
+    let bytesOut;
+    if(code<dictSize){
+      bytesOut=codeToBytes(code);
+    }else if(code===dictSize&&prevCode!==-1){
+      const prevBytes=codeToBytes(prevCode);
+      bytesOut=prevBytes.concat(prevBytes[0]);
+    }else{
+      break;
+    }
+    for(let i=0;i<bytesOut.length&&outPos<pixelCount;i++)output[outPos++]=bytesOut[i];
+    if(prevCode!==-1&&dictSize<4096){
+      dictPrefix[dictSize]=prevCode;
+      dictSuffix[dictSize]=bytesOut[0];
+      dictSize++;
+      if(dictSize===(1<<codeSize)&&codeSize<12)codeSize++;
+    }
+    prevCode=code;
+  }
+  return output;
+}
+
+function decodeGIF(buf){
+  const bytes=new Uint8Array(buf);
+  let p=0;
+  const sig=String.fromCharCode(bytes[0],bytes[1],bytes[2]);
+  if(sig!=='GIF')throw new Error('not a gif file');
+  p=6;
+  const width=bytes[p]|(bytes[p+1]<<8);p+=2;
+  const height=bytes[p]|(bytes[p+1]<<8);p+=2;
+  const packed=bytes[p++];
+  const gctFlag=(packed&0x80)!==0;
+  const gctSize=2<<(packed&0x07);
+  p+=2; // bg color index, pixel aspect ratio
+  function readPalette(size){
+    const pal=new Array(size);
+    for(let i=0;i<size;i++){pal[i]=[bytes[p],bytes[p+1],bytes[p+2]];p+=3;}
+    return pal;
+  }
+  let gct=null;
+  if(gctFlag)gct=readPalette(gctSize);
+  function skipSubBlocks(){
+    while(true){const size=bytes[p++];if(!size)break;p+=size;}
+  }
+  const frames=[];
+  const canvas=new Uint8ClampedArray(width*height*4);
+  let delay=100,transparentIndex=-1,disposal=0,hasTransparency=false;
+  let disposeRegion=null;
+
+  while(p<bytes.length){
+    const blockType=bytes[p++];
+    if(blockType===0x21){
+      const label=bytes[p++];
+      if(label===0xF9){
+        p++; // block size = 4
+        const gc=bytes[p++];
+        disposal=(gc>>2)&0x07;
+        hasTransparency=(gc&0x01)!==0;
+        delay=(bytes[p]|(bytes[p+1]<<8))*10;p+=2;
+        transparentIndex=bytes[p++];
+        p++; // terminator
+        if(delay===0)delay=100;
+      }else if(label===0xFF){
+        p++; // app block size = 11
+        p+=11;
+        skipSubBlocks();
+      }else{
+        skipSubBlocks();
+      }
+    }else if(blockType===0x2C){
+      const left=bytes[p]|(bytes[p+1]<<8);p+=2;
+      const top=bytes[p]|(bytes[p+1]<<8);p+=2;
+      const fw=bytes[p]|(bytes[p+1]<<8);p+=2;
+      const fh=bytes[p]|(bytes[p+1]<<8);p+=2;
+      const fpacked=bytes[p++];
+      const lctFlag=(fpacked&0x80)!==0;
+      const interlaced=(fpacked&0x40)!==0;
+      const lctSize=2<<(fpacked&0x07);
+      let palette=gct;
+      if(lctFlag)palette=readPalette(lctSize);
+      const minCodeSize=bytes[p++];
+      const dataBytes=[];
+      while(true){
+        const size=bytes[p++];
+        if(!size)break;
+        for(let i=0;i<size;i++)dataBytes.push(bytes[p++]);
+      }
+      const indices=lzwDecode(minCodeSize,dataBytes,fw*fh);
+      if(disposeRegion){
+        for(let y=0;y<disposeRegion.h;y++){
+          for(let x=0;x<disposeRegion.w;x++){
+            const idx=((disposeRegion.top+y)*width+(disposeRegion.left+x))*4;
+            canvas[idx]=0;canvas[idx+1]=0;canvas[idx+2]=0;canvas[idx+3]=0;
+          }
+        }
+        disposeRegion=null;
+      }
+      let srcIdx=0;
+      const setPixel=(row,col)=>{
+        const colorIndex=indices[srcIdx++];
+        if(hasTransparency&&colorIndex===transparentIndex)return;
+        const c=palette&&palette[colorIndex]?palette[colorIndex]:[0,0,0];
+        const px=left+col,py=top+row;
+        if(px<0||px>=width||py<0||py>=height)return;
+        const idx=(py*width+px)*4;
+        canvas[idx]=c[0];canvas[idx+1]=c[1];canvas[idx+2]=c[2];canvas[idx+3]=255;
+      };
+      if(interlaced){
+        const rowOrder=[];
+        for(let r=0;r<fh;r+=8)rowOrder.push(r);
+        for(let r=4;r<fh;r+=8)rowOrder.push(r);
+        for(let r=2;r<fh;r+=4)rowOrder.push(r);
+        for(let r=1;r<fh;r+=2)rowOrder.push(r);
+        for(const row of rowOrder)for(let col=0;col<fw;col++)setPixel(row,col);
+      }else{
+        for(let row=0;row<fh;row++)for(let col=0;col<fw;col++)setPixel(row,col);
+      }
+      frames.push({data:canvas.slice(),delay});
+      if(disposal===2)disposeRegion={left,top,w:fw,h:fh};
+      delay=100;transparentIndex=-1;hasTransparency=false;disposal=0;
+    }else if(blockType===0x3B){
+      break;
+    }else{
+      break;
+    }
+  }
+  return {width,height,frames};
+}
+
+// ---------- ascii rendering ----------
+function computeRows(cols,imgW,imgH){
+  return Math.max(1,Math.round(cols*(imgH/imgW)*CHAR_ASPECT));
+}
+
+function renderFrame(frameData,imgW,imgH,cols,settings){
+  const rows=computeRows(cols,imgW,imgH);
+  const {charset,brightness,contrast,invert,color}=settings;
+  const n=charset.length;
+  const scaleX=imgW/cols,scaleY=imgH/rows;
+  // box-average every source pixel a cell covers (capped) instead of picking one nearest
+  // pixel per cell — nearest-neighbor turns fine detail/texture into noisy speckle once a
+  // busy photo is downscaled to a coarse character grid.
+  const sampX=Math.max(1,Math.min(4,Math.round(scaleX)));
+  const sampY=Math.max(1,Math.min(4,Math.round(scaleY)));
+  const f=(259*(contrast+255))/(255*(259-contrast));
+  let plain='';
+  let html='';
+  for(let row=0;row<rows;row++){
+    let htmlRow='',runColor=null,runStr='';
+    const y0=row*scaleY;
+    for(let col=0;col<cols;col++){
+      const x0=col*scaleX;
+      let rSum=0,gSum=0,bSum=0,count=0;
+      for(let sy=0;sy<sampY;sy++){
+        const py=Math.min(imgH-1,Math.floor(y0+(sy+0.5)*scaleY/sampY));
+        for(let sx=0;sx<sampX;sx++){
+          const px=Math.min(imgW-1,Math.floor(x0+(sx+0.5)*scaleX/sampX));
+          const idx=(py*imgW+px)*4;
+          if(frameData[idx+3]<16)continue;
+          rSum+=frameData[idx];gSum+=frameData[idx+1];bSum+=frameData[idx+2];
+          count++;
+        }
+      }
+      const r=count?rSum/count:0,g=count?gSum/count:0,b=count?bSum/count:0;
+      let lum=count?(0.299*r+0.587*g+0.114*b):0;
+      lum+=brightness;
+      lum=f*(lum-128)+128;
+      lum=Math.max(0,Math.min(255,lum));
+      let charIdx=Math.floor((lum/255)*(n-1));
+      if(invert)charIdx=(n-1)-charIdx;
+      charIdx=Math.max(0,Math.min(n-1,charIdx));
+      const ch=charset[charIdx];
+      plain+=ch;
+      if(color){
+        const colHex=count?`rgb(${Math.min(255,Math.round(r/24)*24)},${Math.min(255,Math.round(g/24)*24)},${Math.min(255,Math.round(b/24)*24)})`:null;
+        if(colHex!==runColor){
+          if(runStr)htmlRow+=runColor?`<span style="color:${runColor}">${escapeHtml(runStr)}</span>`:escapeHtml(runStr);
+          runColor=colHex;runStr=ch;
+        }else{
+          runStr+=ch;
+        }
+      }
+    }
+    if(color){
+      if(runStr)htmlRow+=runColor?`<span style="color:${runColor}">${escapeHtml(runStr)}</span>`:escapeHtml(runStr);
+      html+=htmlRow+'\n';
+    }
+    plain+='\n';
+  }
+  return {plain,html,rows};
+}
+
+// analyzes the frame's real luminance histogram and picks brightness/contrast that stretch
+// the 1st-99th percentile range to full black-white — busy or flat/low-contrast photos
+// otherwise get crushed into 2-3 charset symbols under the default 0/0 settings.
+function computeAutoLevels(frameData,imgW,imgH){
+  const hist=new Array(256).fill(0);
+  let total=0;
+  for(let i=0;i<imgW*imgH;i++){
+    const idx=i*4;
+    if(frameData[idx+3]<16)continue;
+    const lum=Math.max(0,Math.min(255,Math.round(0.299*frameData[idx]+0.587*frameData[idx+1]+0.114*frameData[idx+2])));
+    hist[lum]++;
+    total++;
+  }
+  if(!total)return {brightness:0,contrast:0};
+  const lowCut=total*0.01,highCut=total*0.01;
+  let cum=0,lumMin=0,lumMax=255;
+  for(let i=0;i<256;i++){cum+=hist[i];if(cum>lowCut){lumMin=i;break;}}
+  cum=0;
+  for(let i=255;i>=0;i--){cum+=hist[i];if(cum>highCut){lumMax=i;break;}}
+  if(lumMax<=lumMin)return {brightness:0,contrast:0};
+  const fMaxAt100=(259*355)/(255*159);
+  const fMinAtNeg100=(259*155)/(255*359);
+  const f=Math.max(fMinAtNeg100,Math.min(fMaxAt100,255/(lumMax-lumMin)));
+  const brightness=Math.max(-100,Math.min(100,Math.round(-128/f-lumMin+128)));
+  const contrast=Math.max(-100,Math.min(100,Math.round(255*259*(f-1)/(259+255*f))));
+  return {brightness,contrast};
+}
+
+// ---------- state & UI wiring ----------
+const dropzone=document.getElementById('dropzone');
+const fileInput=document.getElementById('file-input');
+const output=document.getElementById('output');
+const outputWrap=document.getElementById('output-wrap');
+const emptyMsg=document.getElementById('empty-msg');
+const statusEl=document.getElementById('status');
+const infoEl=document.getElementById('info');
+const playback=document.getElementById('playback');
+const playBtn=document.getElementById('play-btn');
+const frameCounter=document.getElementById('frame-counter');
+const copyBtn=document.getElementById('copy-btn');
+const downloadBtn=document.getElementById('download-btn');
+const exportBtn=document.getElementById('export-btn');
+const clearBtn=document.getElementById('clear-btn');
+const autoLevelsBtn=document.getElementById('auto-levels-btn');
+
+let imageFrames=[],imgW=0,imgH=0,frameIndex=0,playing=true,playTimer=null;
+let currentPlainText='',currentHtml='',currentFontSize=8;
+
+function getSettings(){
+  const sel=document.getElementById('charset-select').value;
+  const charset=sel==='custom'?(document.getElementById('custom-charset').value||' .:-=+*#%@'):CHARSETS[sel];
+  return {
+    cols:parseInt(document.getElementById('ctrl-cols').value,10),
+    charset,
+    brightness:parseFloat(document.getElementById('ctrl-brightness').value),
+    contrast:parseFloat(document.getElementById('ctrl-contrast').value),
+    invert:document.getElementById('ctrl-invert').checked,
+    color:document.getElementById('ctrl-color').checked,
+  };
+}
+
+function fitFont(cols){
+  const w=outputWrap.clientWidth-32;
+  const size=Math.max(2,Math.min(14,w/(cols*0.58)));
+  currentFontSize=size;
+  output.style.fontSize=size+'px';
+}
+
+function renderCurrent(){
+  if(!imageFrames.length)return;
+  const settings=getSettings();
+  const frame=imageFrames[frameIndex];
+  const {plain,html,rows}=renderFrame(frame.data,imgW,imgH,settings.cols,settings);
+  currentPlainText=plain;
+  currentHtml=html;
+  fitFont(settings.cols);
+  if(settings.color)output.innerHTML=html;
+  else output.textContent=plain;
+  document.getElementById('info-grid').textContent=settings.cols+' x '+rows;
+  if(imageFrames.length>1)frameCounter.textContent=(frameIndex+1)+' / '+imageFrames.length;
+}
+
+function stopPlayback(){if(playTimer)clearTimeout(playTimer);playTimer=null;}
+function startPlayback(){
+  stopPlayback();
+  if(imageFrames.length<=1)return;
+  const tick=()=>{
+    frameIndex=(frameIndex+1)%imageFrames.length;
+    renderCurrent();
+    playTimer=setTimeout(tick,Math.max(20,imageFrames[frameIndex].delay));
+  };
+  playTimer=setTimeout(tick,Math.max(20,imageFrames[frameIndex].delay));
+}
+
+function loadFrames(frames,w,h,file){
+  imageFrames=frames;imgW=w;imgH=h;frameIndex=0;playing=true;
+  emptyMsg.style.display='none';
+  infoEl.style.display='';
+  document.getElementById('info-name').textContent=file.name;
+  document.getElementById('info-size').textContent=w+' x '+h;
+  document.getElementById('info-frames').textContent=frames.length;
+  playback.classList.toggle('visible',frames.length>1);
+  playBtn.textContent='pause';
+  [copyBtn,downloadBtn,exportBtn,clearBtn,autoLevelsBtn].forEach(b=>b.disabled=false);
+  renderCurrent();
+  startPlayback();
+}
+
+function resetTool(){
+  stopPlayback();
+  imageFrames=[];imgW=0;imgH=0;frameIndex=0;
+  output.textContent='';output.innerHTML='';
+  emptyMsg.style.display='';
+  infoEl.style.display='none';
+  playback.classList.remove('visible');
+  [copyBtn,downloadBtn,exportBtn,clearBtn,autoLevelsBtn].forEach(b=>b.disabled=true);
+  fileInput.value='';
+}
+
+function handleFile(file){
+  const isGif=file.type==='image/gif'||/\.gif$/i.test(file.name);
+  if(isGif){
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const gif=decodeGIF(e.target.result);
+        if(!gif.frames.length)throw new Error('no frames found');
+        loadFrames(gif.frames,gif.width,gif.height,file);
+      }catch(err){
+        alert('could not decode gif: '+err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }else{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const maxDim=1400;
+        const scale=Math.min(1,maxDim/Math.max(img.width,img.height));
+        const w=Math.max(1,Math.round(img.width*scale));
+        const h=Math.max(1,Math.round(img.height*scale));
+        const c=document.createElement('canvas');c.width=w;c.height=h;
+        const cctx=c.getContext('2d');
+        cctx.drawImage(img,0,0,w,h);
+        const data=cctx.getImageData(0,0,w,h).data;
+        loadFrames([{data,delay:0}],w,h,file);
+      };
+      img.onerror=()=>alert('could not load image');
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function flashStatus(msg){
+  statusEl.textContent=msg;
+  statusEl.classList.add('show');
+  setTimeout(()=>statusEl.classList.remove('show'),1200);
+}
+
+function downloadBlob(content,filename,type){
+  const blob=new Blob([content],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;
+  document.body.appendChild(a);a.click();a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportHTML(){
+  const settings=getSettings();
+  const isAnim=imageFrames.length>1;
+  let bodyContent='',script='';
+  if(!isAnim){
+    bodyContent=settings.color?currentHtml:escapeHtml(currentPlainText);
+  }else{
+    const frameStrings=imageFrames.map(f=>{
+      const r=renderFrame(f.data,imgW,imgH,settings.cols,settings);
+      return settings.color?r.html:escapeHtml(r.plain);
+    });
+    const delays=imageFrames.map(f=>Math.max(20,f.delay));
+    script=`<script>
+const frames=${JSON.stringify(frameStrings)};
+const delays=${JSON.stringify(delays)};
+let i=0;
+const el=document.getElementById('a');
+function tick(){el.innerHTML=frames[i];i=(i+1)%frames.length;setTimeout(tick,delays[i]);}
+tick();
+<\/script>`;
+  }
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ascii art</title>
+<style>body{background:#000;color:#fff;margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;}
+pre{font-family:'Courier New',monospace;font-size:${currentFontSize}px;line-height:1.15;white-space:pre;}</style>
+</head><body><pre id="a">${isAnim?'':bodyContent}</pre>${script}</body></html>`;
+  downloadBlob(html,isAnim?'ascii-anim.html':'ascii-art.html','text/html');
+}
+
+// wiring
+fileInput.addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
+['dragover','dragenter'].forEach(ev=>dropzone.addEventListener(ev,e=>{e.preventDefault();dropzone.classList.add('drag');}));
+['dragleave','drop'].forEach(ev=>dropzone.addEventListener(ev,e=>{e.preventDefault();dropzone.classList.remove('drag');}));
+dropzone.addEventListener('drop',e=>{
+  const file=e.dataTransfer.files[0];
+  if(file&&file.type.startsWith('image/'))handleFile(file);
+});
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',e=>{
+  if(e.target.closest('#dropzone'))return;
+  e.preventDefault();
+  const file=e.dataTransfer.files[0];
+  if(file&&file.type.startsWith('image/'))handleFile(file);
+});
+
+document.getElementById('charset-select').addEventListener('change',e=>{
+  document.getElementById('custom-charset-field').style.display=e.target.value==='custom'?'':'none';
+  renderCurrent();
+});
+document.getElementById('custom-charset').addEventListener('input',renderCurrent);
+function bindRange(id,valId,onChange){
+  const el=document.getElementById(id),val=document.getElementById(valId);
+  el.addEventListener('input',()=>{if(val)val.textContent=el.value;onChange&&onChange();renderCurrent();});
+}
+bindRange('ctrl-cols','val-cols');
+bindRange('ctrl-brightness','val-brightness');
+bindRange('ctrl-contrast','val-contrast');
+document.getElementById('ctrl-invert').addEventListener('change',renderCurrent);
+document.getElementById('ctrl-color').addEventListener('change',renderCurrent);
+
+playBtn.addEventListener('click',()=>{
+  playing=!playing;
+  playBtn.textContent=playing?'pause':'play';
+  if(playing)startPlayback();else stopPlayback();
+});
+
+autoLevelsBtn.addEventListener('click',()=>{
+  if(!imageFrames.length)return;
+  const {brightness,contrast}=computeAutoLevels(imageFrames[frameIndex].data,imgW,imgH);
+  const bEl=document.getElementById('ctrl-brightness'),cEl=document.getElementById('ctrl-contrast');
+  bEl.value=brightness;cEl.value=contrast;
+  document.getElementById('val-brightness').textContent=brightness;
+  document.getElementById('val-contrast').textContent=contrast;
+  renderCurrent();
+  flashStatus('auto levels applied');
+});
+
+copyBtn.addEventListener('click',()=>{
+  navigator.clipboard.writeText(currentPlainText).then(()=>flashStatus('copied')).catch(()=>flashStatus('copy failed'));
+});
+downloadBtn.addEventListener('click',()=>downloadBlob(currentPlainText,'ascii.txt','text/plain'));
+exportBtn.addEventListener('click',exportHTML);
+clearBtn.addEventListener('click',resetTool);
+
+window.addEventListener('resize',()=>{if(imageFrames.length)fitFont(getSettings().cols);});
+</script>
+</body>
+</html>
