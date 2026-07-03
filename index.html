@@ -36,6 +36,16 @@ canvas{position:fixed;top:0;left:0;z-index:0;}
 .project-card:hover{border-color:#666;background:rgba(255,255,255,0.03);}
 .project-card-title{color:#ccc;font-size:15px;margin-bottom:8px;}
 .project-card-desc{color:#666;font-size:13px;line-height:1.6;}
+.lock-prompt{display:none;gap:8px;margin-top:16px;}
+.lock-prompt.visible{display:flex;}
+.lock-prompt input[type=password]{flex:1;background:#0a0a0a;border:1px solid #333;color:#ccc;font-family:"Courier New",monospace;font-size:12px;padding:8px 10px;letter-spacing:1px;}
+.lock-prompt input[type=password]:focus{outline:none;border-color:#666;}
+.lock-btn{background:none;border:1px solid #333;color:#888;font-family:"Courier New",monospace;font-size:11px;padding:8px 14px;cursor:pointer;letter-spacing:1px;transition:color 0.2s,border-color 0.2s;}
+.lock-btn:hover{color:#fff;border-color:#fff;}
+.lock-error{display:none;color:#a55;font-size:11px;margin-top:8px;letter-spacing:1px;}
+.lock-error.show{display:block;}
+@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
+.shake{animation:shake 0.3s ease;}
 .overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:9;opacity:0;pointer-events:none;transition:opacity 0.5s ease;}
 .overlay.active{opacity:1;pointer-events:all;}
 
@@ -91,7 +101,7 @@ canvas{position:fixed;top:0;left:0;z-index:0;}
 
 <div class="panel" id="panel-about"><div class="panel-inner"><div class="panel-header"><div class="panel-title">about me</div><button class="panel-close" onclick="closePanel()">✕ close</button></div><div class="panel-content"><div>I'm a 17-year-old from Scotland with a strong interest in cybersecurity and technology. I spend my time building projects across a range of areas to sharpen my skills and deepen my understanding of how things work. I'm always learning, always experimenting, and driven by curiosity about the systems behind the tech we use every day.</div><div class="placeholder placeholder-img">[ photo / image ]</div></div></div></div>
 <div class="panel" id="panel-qualifications"><div class="panel-inner"><div class="panel-header"><div class="panel-title">qualifications</div><button class="panel-close" onclick="closePanel()">✕ close</button></div><div class="panel-content"><div class="placeholder">[ your qualifications go here ]</div><div class="placeholder placeholder-img">[ certificates / images ]</div><div class="placeholder">[ additional detail ]</div></div></div></div>
-<div class="panel" id="panel-projects"><div class="panel-inner"><div class="panel-header"><div class="panel-title">projects</div><button class="panel-close" onclick="closePanel()">✕ close</button></div><div class="panel-content"><a href="ascii/index.html" data-fold class="project-card"><div class="project-card-title">ascii art generator</div><div class="project-card-desc">Turn any photo or animated gif into ascii art right in your browser — adjustable charset, brightness/contrast, colorized output, and export as a standalone playable html file.</div></a><a href="spotify/index.html" data-fold class="project-card"><div class="project-card-title">spotify visualizer</div><div class="project-card-desc">An ascii equalizer and now-playing readout driven by your spotify account, with album art rendered as ascii art to match the rest of the site.</div></a></div></div></div>
+<div class="panel" id="panel-projects"><div class="panel-inner"><div class="panel-header"><div class="panel-title">projects</div><button class="panel-close" onclick="closePanel()">✕ close</button></div><div class="panel-content"><a href="ascii/index.html" data-fold class="project-card"><div class="project-card-title">ascii art generator</div><div class="project-card-desc">Turn any photo or animated gif into ascii art right in your browser — adjustable charset, brightness/contrast, colorized output, and export as a standalone playable html file.</div></a><a href="spotify/index.html" data-fold class="project-card"><div class="project-card-title">spotify visualizer</div><div class="project-card-desc">An ascii equalizer and now-playing readout driven by your spotify account, with album art rendered as ascii art to match the rest of the site.</div></a><div class="project-card locked" id="card-compressor"><div class="project-card-title">file compressor 🔒</div><div class="project-card-desc">Compress or decompress any file right in your browser using gzip/deflate — no upload, no server, just the native Compression Streams API.</div><div class="lock-prompt" id="lock-prompt"><input type="password" id="lock-input" placeholder="password" autocomplete="off"><button class="lock-btn" id="lock-btn" type="button">unlock</button></div><div class="lock-error" id="lock-error">incorrect password</div></div></div></div></div>
 <div class="panel" id="panel-interests"><div class="panel-inner"><div class="panel-header"><div class="panel-title">interests</div><button class="panel-close" onclick="closePanel()">✕ close</button></div><div class="panel-content"><div class="placeholder">[ your interests go here ]</div><div class="placeholder placeholder-img">[ photo / image ]</div><div class="placeholder">[ more text goes here ]</div></div></div></div>
 <div class="panel" id="panel-contact"><div class="panel-inner"><div class="panel-header"><div class="panel-title">contact</div><button class="panel-close" onclick="closePanel()">✕ close</button></div><div class="panel-content"><div class="placeholder">[ your contact info goes here ]</div><div class="placeholder">[ email / links / form ]</div></div></div></div>
 
@@ -290,6 +300,40 @@ document.querySelectorAll('a[data-fold]').forEach(a=>{
     navigateWithFold(a.getAttribute('href'));
   });
 });
+
+// Locked project card (file compressor)
+(function(){
+  const PASSWORD='9090';
+  const card=document.getElementById('card-compressor');
+  const prompt=document.getElementById('lock-prompt');
+  const input=document.getElementById('lock-input');
+  const btn=document.getElementById('lock-btn');
+  const err=document.getElementById('lock-error');
+
+  card.addEventListener('click',()=>{
+    if(!prompt.classList.contains('visible')){
+      prompt.classList.add('visible');
+      input.focus();
+    }
+  });
+  [prompt,err].forEach(el=>el.addEventListener('click',e=>e.stopPropagation()));
+
+  function tryUnlock(){
+    if(input.value===PASSWORD){
+      navigateWithFold('compressor/index.html');
+    }else{
+      err.classList.add('show');
+      card.classList.add('shake');
+      input.value='';
+      setTimeout(()=>card.classList.remove('shake'),300);
+    }
+  }
+  btn.addEventListener('click',e=>{e.stopPropagation();tryUnlock();});
+  input.addEventListener('click',e=>e.stopPropagation());
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.stopPropagation();tryUnlock();}
+  });
+})();
 </script>
 </body>
 </html>
