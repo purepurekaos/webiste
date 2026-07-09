@@ -49,6 +49,17 @@ canvas{position:fixed;top:0;left:0;z-index:0;}
 .overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:9;opacity:0;pointer-events:none;transition:opacity 0.5s ease;}
 .overlay.active{opacity:1;pointer-events:all;}
 
+.site-hidden{display:none !important;}
+#lock-screen{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);backdrop-filter:blur(3px);opacity:1;transition:opacity 0.6s ease;}
+#lock-screen.unlocked{opacity:0;pointer-events:none;}
+.lock-box{text-align:center;padding:48px 56px;border:1px solid #222;background:rgba(0,0,0,0.55);}
+.lock-title{font-size:20px;letter-spacing:5px;margin-bottom:10px;}
+.lock-sub{font-size:11px;color:#666;letter-spacing:1px;margin-bottom:28px;}
+.lock-form{display:flex;gap:8px;}
+.lock-form input[type=password]{background:#0a0a0a;border:1px solid #333;color:#ccc;font-family:"Courier New",monospace;font-size:13px;padding:10px 12px;letter-spacing:2px;width:170px;}
+.lock-form input[type=password]:focus{outline:none;border-color:#666;}
+.lock-box .lock-error{margin-top:14px;}
+
 /* Upload UI */
 #upload-btn{position:fixed;bottom:28px;right:28px;z-index:3;background:none;border:1px solid #333;color:#666;font-family:"Courier New",monospace;font-size:11px;padding:8px 14px;cursor:pointer;letter-spacing:1px;transition:color 0.2s,border-color 0.2s;}
 #upload-btn:hover{color:#fff;border-color:#fff;}
@@ -81,7 +92,19 @@ canvas{position:fixed;top:0;left:0;z-index:0;}
 
 <div id="fold-overlay"><div class="fold-panel fold-top"></div><div class="fold-panel fold-bottom"></div></div>
 
-<div class="container" id="main">
+<div id="lock-screen">
+  <div class="lock-box">
+    <div class="lock-title">TLR</div>
+    <div class="lock-sub">enter password to continue</div>
+    <div class="lock-form">
+      <input type="password" id="site-lock-input" placeholder="password" autocomplete="off">
+      <button class="lock-btn" id="site-lock-btn" type="button">enter</button>
+    </div>
+    <div class="lock-error" id="site-lock-error">incorrect password</div>
+  </div>
+</div>
+
+<div class="container site-hidden" id="main">
   <div class="menu">
     <div class="menu-item"><a onclick="openPanel('about')">about me</a><div class="popup">A little bit about who I am and what I do.</div></div>
     <div class="menu-item"><a onclick="openPanel('qualifications')">Qualifications</a><div class="popup">My education, certifications, and experience.</div></div>
@@ -105,7 +128,7 @@ canvas{position:fixed;top:0;left:0;z-index:0;}
 <div class="panel" id="panel-interests"><div class="panel-inner"><div class="panel-header"><div class="panel-title">interests</div><button class="panel-close" onclick="closePanel()">✕ close</button></div><div class="panel-content"><div class="placeholder">[ your interests go here ]</div><div class="placeholder placeholder-img">[ photo / image ]</div><div class="placeholder">[ more text goes here ]</div></div></div></div>
 <div class="panel" id="panel-contact"><div class="panel-inner"><div class="panel-header"><div class="panel-title">contact</div><button class="panel-close" onclick="closePanel()">✕ close</button></div><div class="panel-content"><div class="placeholder">[ your contact info goes here ]</div><div class="placeholder">[ email / links / form ]</div></div></div></div>
 
-<button id="upload-btn" onclick="document.getElementById('upload-input').click()">+ image</button>
+<button id="upload-btn" class="site-hidden" onclick="document.getElementById('upload-input').click()">+ image</button>
 <input type="file" id="upload-input" accept="image/*">
 
 <div id="img-controls">
@@ -120,6 +143,46 @@ canvas{position:fixed;top:0;left:0;z-index:0;}
 </div>
 
 <script>
+// Site-wide password gate
+(function(){
+  const PASSWORD='9090';
+  const STORAGE_KEY='tlr-unlocked';
+  const lockScreen=document.getElementById('lock-screen');
+  const lockBox=document.querySelector('.lock-box');
+  const input=document.getElementById('site-lock-input');
+  const btn=document.getElementById('site-lock-btn');
+  const err=document.getElementById('site-lock-error');
+  const main=document.getElementById('main');
+  const uploadBtn=document.getElementById('upload-btn');
+
+  function reveal(){
+    main.classList.remove('site-hidden');
+    uploadBtn.classList.remove('site-hidden');
+    lockScreen.classList.add('unlocked');
+    setTimeout(()=>{lockScreen.style.display='none';},600);
+  }
+
+  if(localStorage.getItem(STORAGE_KEY)==='true'){
+    reveal();
+  }else{
+    input.focus();
+  }
+
+  function tryUnlock(){
+    if(input.value===PASSWORD){
+      localStorage.setItem(STORAGE_KEY,'true');
+      reveal();
+    }else{
+      err.classList.add('show');
+      lockBox.classList.add('shake');
+      input.value='';
+      setTimeout(()=>lockBox.classList.remove('shake'),300);
+    }
+  }
+  btn.addEventListener('click',tryUnlock);
+  input.addEventListener('keydown',e=>{if(e.key==='Enter')tryUnlock();});
+})();
+
 // Clock
 function updateClock(){const now=new Date();document.getElementById('clock').textContent=now.toLocaleDateString()+" "+now.toLocaleTimeString()+" GMT";}
 updateClock();setInterval(updateClock,1000);
