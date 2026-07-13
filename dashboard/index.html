@@ -15,7 +15,8 @@ h1{font-size:20px;letter-spacing:3px;text-transform:lowercase;margin-bottom:8px;
 .sub{font-size:12px;color:#555;letter-spacing:1px;margin-bottom:36px;}
 
 /* login */
-#login{max-width:320px;}
+#login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+.login-box{pointer-events:auto;width:100%;max-width:320px;padding:0 20px;text-align:center;}
 #login input{width:100%;background:#0a0a0a;border:1px solid #333;color:#ccc;font-family:"Courier New",monospace;font-size:13px;padding:10px 12px;letter-spacing:1px;margin-bottom:10px;}
 #login input:focus{outline:none;border-color:#666;}
 #login button{width:100%;background:none;border:1px solid #333;color:#888;font-family:"Courier New",monospace;font-size:12px;padding:10px 12px;cursor:pointer;letter-spacing:1px;transition:color 0.2s,border-color 0.2s;}
@@ -59,12 +60,14 @@ textarea:focus,.row input:focus,.row select:focus{outline:none;border-color:#666
   <a class="back" href="../index.html">&larr; back</a>
 
   <div id="login">
-    <h1>dashboard</h1>
-    <div class="sub">enter your credentials to continue</div>
-    <input type="email" id="login-email" placeholder="email" autocomplete="username">
-    <input type="password" id="login-password" placeholder="password" autocomplete="current-password">
-    <button id="login-btn" type="button">log in</button>
-    <div class="error" id="login-error">login failed</div>
+    <div class="login-box">
+      <h1>dashboard</h1>
+      <div class="sub">enter your credentials to continue</div>
+      <input type="email" id="login-email" placeholder="email" autocomplete="username">
+      <input type="password" id="login-password" placeholder="password" autocomplete="current-password">
+      <button id="login-btn" type="button">log in</button>
+      <div class="error" id="login-error">login failed</div>
+    </div>
   </div>
 
   <div id="dash">
