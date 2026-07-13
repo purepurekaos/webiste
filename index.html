@@ -7,7 +7,8 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{color:#fff;font-family:"Courier New",monospace;display:flex;justify-content:center;align-items:center;min-height:100vh;overflow:hidden;background:#000;}
-canvas{position:fixed;top:0;left:0;z-index:0;}
+canvas{display:block;}
+#bg{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
 #ascii-layer{position:fixed;top:0;left:0;z-index:1;width:100%;height:100%;overflow:hidden;pointer-events:none;}
 #ascii-pre{position:absolute;top:0;left:0;font-family:"Courier New",monospace;font-size:11px;line-height:1.25;color:rgba(255,255,255,0.18);white-space:pre;pointer-events:none;letter-spacing:1px;transition:opacity 0.8s ease;}
 .container{text-align:center;position:relative;z-index:2;transition:opacity 0.4s ease,transform 0.4s ease;}
@@ -49,6 +50,7 @@ canvas{position:fixed;top:0;left:0;z-index:0;}
 .overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:9;opacity:0;pointer-events:none;transition:opacity 0.5s ease;}
 .overlay.active{opacity:1;pointer-events:all;}
 
+
 /* Upload UI */
 #upload-btn{position:fixed;bottom:28px;right:28px;z-index:3;background:none;border:1px solid #333;color:#666;font-family:"Courier New",monospace;font-size:11px;padding:8px 14px;cursor:pointer;letter-spacing:1px;transition:color 0.2s,border-color 0.2s;}
 #upload-btn:hover{color:#fff;border-color:#fff;}
@@ -74,7 +76,7 @@ canvas{position:fixed;top:0;left:0;z-index:0;}
 </style>
 </head>
 <body>
-<canvas id="bg"></canvas>
+<div id="bg" aria-hidden="true"></div>
 <div id="ascii-layer"><pre id="ascii-pre"></pre></div>
 
 <div id="drop-overlay">[ drop image ]</div>
@@ -129,41 +131,11 @@ function openPanel(name){document.querySelectorAll('.panel').forEach(p=>p.classL
 function closePanel(){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.getElementById('overlay').classList.remove('active');document.getElementById('main').classList.remove('hidden');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closePanel();});
 
-// Perlin
-const canvas=document.getElementById('bg');
-const ctx=canvas.getContext('2d',{alpha:false});
-function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;resizeAscii();}
+function resize(){resizeAscii();}
 resize();window.addEventListener('resize',resize);
 function fade(t){return t*t*t*(t*(t*6-15)+10);}
 function lerp(a,b,t){return a+t*(b-a);}
 function grad(hash,x,y){const h=hash&3;return((h&1)?-(h<2?x:y):(h<2?x:y))+((h&2)?-(h<2?y:x):(h<2?y:x));}
-const p=new Uint8Array(256);for(let i=0;i<256;i++)p[i]=i;for(let i=255;i>0;i--){const j=Math.floor(Math.random()*(i+1));[p[i],p[j]]=[p[j],p[i]];}
-const perm=new Uint8Array(512);for(let i=0;i<512;i++)perm[i]=p[i&255];
-function perlin(x,y){const X=Math.floor(x)&255,Y=Math.floor(y)&255;x-=Math.floor(x);y-=Math.floor(y);const u=fade(x),v=fade(y);const a=perm[X]+Y,b=perm[X+1]+Y;return lerp(lerp(grad(perm[a],x,y),grad(perm[b],x-1,y),u),lerp(grad(perm[a+1],x,y-1),grad(perm[b+1],x-1,y-1),u),v);}
-function fbm(x,y,oct){let v=0,a=0.5,f=1,m=0;for(let i=0;i<oct;i++){v+=perlin(x*f,y*f)*a;m+=a;a*=0.5;f*=2;}return v/m;}
-const offscreen=document.createElement('canvas');
-const off=offscreen.getContext('2d',{alpha:false});
-let t=0;
-function drawWaves(){
-  const w=canvas.width,h=canvas.height;
-  if(offscreen.width!==w||offscreen.height!==h){offscreen.width=w;offscreen.height=h;}
-  off.fillStyle='#000';off.fillRect(0,0,w,h);
-  const numLines=140;
-  for(let i=0;i<numLines;i++){
-    const baseY=(i/numLines)*h,depth=i/numLines;
-    off.beginPath();let first=true;
-    for(let x=0;x<=w;x+=4){
-      const n=fbm(x/w*3+t*0.07,i/numLines*3+t*0.04,4);
-      const amp=(h/numLines)*(1.5+Math.sin(depth*Math.PI)*3);
-      const y=baseY+n*amp;
-      if(first){off.moveTo(x,y);first=false;}else off.lineTo(x,y);
-    }
-    const b=Math.floor(10+Math.sin(depth*Math.PI)*32);
-    off.strokeStyle=`rgb(${b},${b},${b})`;off.lineWidth=1;off.stroke();
-  }
-  ctx.drawImage(offscreen,0,0);
-  t+=0.0015;
-}
 
 // ASCII
 const ASCII_CHARS=' .,:;+*?%S#@';
@@ -227,7 +199,7 @@ function drawAscii(ts){
   pre.textContent=out;
 }
 
-function loop(ts){drawWaves();drawAscii(ts);requestAnimationFrame(loop);}
+function loop(ts){drawAscii(ts);requestAnimationFrame(loop);}
 requestAnimationFrame(loop);
 
 // Image upload
@@ -334,6 +306,110 @@ document.querySelectorAll('a[data-fold]').forEach(a=>{
     if(e.key==='Enter'){e.stopPropagation();tryUnlock();}
   });
 })();
+
+</script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+// Cybernetic grid shader background, rendered into #bg
+const container = document.getElementById('bg');
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(1);
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const clock = new THREE.Clock();
+
+const vertexShader = `
+  void main() {
+    gl_Position = vec4(position, 1.0);
+  }
+`;
+
+const fragmentShader = `
+  precision highp float;
+  uniform vec2 iResolution;
+  uniform float iTime;
+  uniform vec2 iMouse;
+
+  float random(vec2 st) {
+    return fract(sin(dot(st.xy, vec2(12.9898, 78.233)))
+                 * 43758.5453123);
+  }
+
+  void main() {
+    vec2 uv    = (gl_FragCoord.xy - 0.5 * iResolution.xy)
+                 / iResolution.y;
+    vec2 mouse = (iMouse - 0.5 * iResolution.xy)
+                 / iResolution.y;
+
+    float t         = iTime * 0.2;
+    float mouseDist = length(uv - mouse);
+
+    float warp = sin(mouseDist * 20.0 - t * 4.0) * 0.03;
+    warp *= smoothstep(0.4, 0.0, mouseDist);
+    uv += warp;
+
+    vec2 gridUv = abs(fract(uv * 10.0) - 0.5);
+    float line  = pow(1.0 - min(gridUv.x, gridUv.y), 50.0);
+
+    vec3 gridColor = vec3(1.0);
+    vec3 color     = gridColor
+                   * line
+                   * (0.5 + sin(t * 2.0) * 0.2);
+
+    float energy = sin(uv.x * 20.0 + t * 5.0)
+                 * sin(uv.y * 20.0 + t * 3.0);
+    energy = smoothstep(0.8, 1.0, energy);
+    color += vec3(1.0) * energy * line;
+
+    float glow = smoothstep(0.1, 0.0, mouseDist);
+    color += vec3(1.0) * glow * 0.5;
+
+    color += random(uv + t * 0.1) * 0.05;
+
+    gl_FragColor = vec4(color, 1.0);
+  }
+`;
+
+const uniforms = {
+  iTime:       { value: 0 },
+  iResolution: { value: new THREE.Vector2() },
+  iMouse:      { value: new THREE.Vector2(window.innerWidth / 2, window.innerHeight / 2) }
+};
+
+const material = new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms });
+const geometry = new THREE.PlaneGeometry(2, 2);
+const mesh     = new THREE.Mesh(geometry, material);
+scene.add(mesh);
+
+function onGridResize() {
+  const width  = container.clientWidth;
+  const height = container.clientHeight;
+  renderer.setSize(width, height);
+  uniforms.iResolution.value.set(width, height);
+}
+window.addEventListener('resize', onGridResize);
+onGridResize();
+
+window.addEventListener('mousemove', e => {
+  uniforms.iMouse.value.set(e.clientX, container.clientHeight - e.clientY);
+});
+
+renderer.setAnimationLoop(() => {
+  uniforms.iTime.value = clock.getElapsedTime();
+  renderer.render(scene, camera);
+});
 </script>
 </body>
 </html>
