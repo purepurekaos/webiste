@@ -31,17 +31,13 @@ body{cursor:crosshair;}
   animation:pop-in 0.45s cubic-bezier(.2,.9,.3,1) forwards;
   transition:opacity 0.5s ease, transform 0.5s ease;
 }
-.nav-tag{
+.choice{
   position:fixed;
-  top:28px;
-  text-decoration:none;
   cursor:pointer;
   z-index:10;
-  transition:transform 0.2s ease;
+  user-select:none;
+  transition:left 0.45s cubic-bezier(.3,.8,.2,1), top 0.45s cubic-bezier(.3,.8,.2,1);
 }
-.nav-tag:hover{transform:scale(1.08) rotate(0deg) !important;}
-.nav-tag.left{left:28px;transform:rotate(-4deg);}
-.nav-tag.right{right:28px;transform:rotate(4deg);}
 .tag.fade{
   opacity:0;
   transform:translate(-50%,-50%) scale(0.6) rotate(var(--rot));
@@ -55,8 +51,8 @@ body{cursor:crosshair;}
 </style>
 </head>
 <body>
-<a href="#projects" class="box nav-tag left">projects</a>
-<a href="#contact" class="box nav-tag right">contact</a>
+<div id="yes-box" class="box choice">yes</div>
+<div id="no-box" class="box choice">no</div>
 <div class="hint">move your mouse</div>
 <script>
 const MIN_DIST = 26;
@@ -108,6 +104,50 @@ function handleMove(x, y){
 }
 
 window.addEventListener('pointermove', e => handleMove(e.clientX, e.clientY));
+
+// Yes/No boxes: start centered side by side, dodge the cursor
+const yesBox = document.getElementById('yes-box');
+const noBox = document.getElementById('no-box');
+const BOX_W = 80, BOX_H = 34, GAP = 12, EDGE_MARGIN = 20;
+const AVOID_RADIUS = 130;
+const DODGE_COOLDOWN = 350;
+let lastDodge = { yes: 0, no: 0 };
+
+function placeSideBySide(){
+  const totalW = BOX_W * 2 + GAP;
+  const startX = (window.innerWidth - totalW) / 2;
+  const y = (window.innerHeight - BOX_H) / 2;
+  yesBox.style.left = startX + 'px';
+  yesBox.style.top = y + 'px';
+  noBox.style.left = (startX + BOX_W + GAP) + 'px';
+  noBox.style.top = y + 'px';
+}
+placeSideBySide();
+
+function randomPos(){
+  const x = EDGE_MARGIN + Math.random() * (window.innerWidth - BOX_W - EDGE_MARGIN * 2);
+  const y = EDGE_MARGIN + Math.random() * (window.innerHeight - BOX_H - EDGE_MARGIN * 2);
+  return { x, y };
+}
+
+function maybeDodge(box, key, mouseX, mouseY){
+  const rect = box.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const dist = Math.hypot(mouseX - cx, mouseY - cy);
+  const now = performance.now();
+  if(dist < AVOID_RADIUS && now - lastDodge[key] > DODGE_COOLDOWN){
+    lastDodge[key] = now;
+    const pos = randomPos();
+    box.style.left = pos.x + 'px';
+    box.style.top = pos.y + 'px';
+  }
+}
+
+window.addEventListener('pointermove', e => {
+  maybeDodge(yesBox, 'yes', e.clientX, e.clientY);
+  maybeDodge(noBox, 'no', e.clientX, e.clientY);
+});
 </script>
 </body>
 </html>
