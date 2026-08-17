@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Louis</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.stage{width:520px;height:520px;position:relative;}
+.spiral-rotor{position:absolute;inset:0;animation:slow-spin 70s linear infinite;}
+.spiral{position:absolute;inset:0;transition:opacity 0.7s ease;}
+.spiral.fade-out{opacity:0;}
+.tag{
+  position:absolute;left:50%;top:50%;
+  width:80px;height:34px;
+  display:flex;align-items:center;justify-content:center;
+  background:#e3ff3a;
+  border:2px solid #fff;
+  border-radius:5px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.18);
+  font:600 12px/1 "Helvetica Neue",Arial,sans-serif;
+  color:#111;
+  opacity:0;
+  animation:pop-in 0.55s cubic-bezier(.2,.9,.3,1) forwards;
+}
+@keyframes pop-in{
+  0%{opacity:0;transform:translate(-50%,-50%) translate(0,0) scale(0.2) rotate(var(--rot0));}
+  60%{opacity:1;transform:translate(-50%,-50%) translate(var(--x),var(--y)) scale(1.08) rotate(calc(var(--rot) + 6deg));}
+  100%{opacity:1;transform:translate(-50%,-50%) translate(var(--x),var(--y)) scale(1) rotate(var(--rot));}
+}
+@keyframes slow-spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="spiral-rotor">
+    <div class="spiral" id="spiral"></div>
+  </div>
+</div>
+<script>
+const N = 40;
+const ANGLE_STEP = 0.55;
+const DR = 4.2;
+const R0 = 14;
+const STAGGER = 90;
+const HOLD_MS = 1400;
+const FADE_MS = 700;
+
+function buildSpiral(container){
+  container.innerHTML = '';
+  for(let i = 0; i < N; i++){
+    const theta = i * ANGLE_STEP;
+    const r = R0 + i * DR;
+    const x = r * Math.cos(theta);
+    const y = r * Math.sin(theta);
+    const rotFinal = theta * 180 / Math.PI + 90 + (Math.random() * 10 - 5);
+    const rotStart = Math.random() * 80 - 40;
+
+    const tag = document.createElement('div');
+    tag.className = 'tag';
+    tag.textContent = i % 2 === 0 ? 'Louis' : 'Employ';
+    tag.style.setProperty('--x', x + 'px');
+    tag.style.setProperty('--y', y + 'px');
+    tag.style.setProperty('--rot', rotFinal + 'deg');
+    tag.style.setProperty('--rot0', rotStart + 'deg');
+    tag.style.animationDelay = (i * STAGGER) + 'ms';
+    container.appendChild(tag);
+  }
+  return N * STAGGER + 550;
+}
+
+function loop(){
+  const spiral = document.getElementById('spiral');
+  spiral.classList.remove('fade-out');
+  const buildTime = buildSpiral(spiral);
+  setTimeout(() => {
+    spiral.classList.add('fade-out');
+    setTimeout(loop, FADE_MS + 200);
+  }, buildTime + HOLD_MS);
+}
+loop();
+</script>
+</body>
+</html>
