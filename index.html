@@ -6,13 +6,10 @@
 <title>Louis</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;}
-.stage{width:520px;height:520px;position:relative;}
-.spiral-rotor{position:absolute;inset:0;animation:slow-spin 70s linear infinite;}
-.spiral{position:absolute;inset:0;transition:opacity 0.7s ease;}
-.spiral.fade-out{opacity:0;}
+html,body{background:#fff;height:100%;overflow:hidden;}
+body{cursor:crosshair;}
 .tag{
-  position:absolute;left:50%;top:50%;
+  position:fixed;
   width:80px;height:34px;
   display:flex;align-items:center;justify-content:center;
   background:#e3ff3a;
@@ -21,65 +18,75 @@ body{background:#fff;min-height:100vh;display:flex;align-items:center;justify-co
   box-shadow:0 3px 8px rgba(0,0,0,0.18);
   font:600 12px/1 "Helvetica Neue",Arial,sans-serif;
   color:#111;
+  pointer-events:none;
   opacity:0;
-  animation:pop-in 0.55s cubic-bezier(.2,.9,.3,1) forwards;
+  animation:pop-in 0.45s cubic-bezier(.2,.9,.3,1) forwards;
+  transition:opacity 0.5s ease, transform 0.5s ease;
+}
+.tag.fade{
+  opacity:0;
+  transform:translate(-50%,-50%) scale(0.6) rotate(var(--rot));
 }
 @keyframes pop-in{
-  0%{opacity:0;transform:translate(-50%,-50%) translate(0,0) scale(0.2) rotate(var(--rot0));}
-  60%{opacity:1;transform:translate(-50%,-50%) translate(var(--x),var(--y)) scale(1.08) rotate(calc(var(--rot) + 6deg));}
-  100%{opacity:1;transform:translate(-50%,-50%) translate(var(--x),var(--y)) scale(1) rotate(var(--rot));}
+  0%{opacity:0;transform:translate(-50%,-50%) scale(0.2) rotate(var(--rot0));}
+  60%{opacity:1;transform:translate(-50%,-50%) scale(1.1) rotate(calc(var(--rot) + 6deg));}
+  100%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(var(--rot));}
 }
-@keyframes slow-spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+.hint{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);font:13px/1 "Helvetica Neue",Arial,sans-serif;color:#999;letter-spacing:0.5px;pointer-events:none;}
 </style>
 </head>
 <body>
-<div class="stage">
-  <div class="spiral-rotor">
-    <div class="spiral" id="spiral"></div>
-  </div>
-</div>
+<div class="hint">move your mouse</div>
 <script>
-const N = 40;
-const ANGLE_STEP = 0.55;
-const DR = 4.2;
-const R0 = 14;
-const STAGGER = 90;
-const HOLD_MS = 1400;
-const FADE_MS = 700;
+const MIN_DIST = 26;
+const MAX_TAGS = 70;
+const FADE_AFTER = 2200;
 
-function buildSpiral(container){
-  container.innerHTML = '';
-  for(let i = 0; i < N; i++){
-    const theta = i * ANGLE_STEP;
-    const r = R0 + i * DR;
-    const x = r * Math.cos(theta);
-    const y = r * Math.sin(theta);
-    const rotFinal = theta * 180 / Math.PI + 90 + (Math.random() * 10 - 5);
-    const rotStart = Math.random() * 80 - 40;
+let lastX = null, lastY = null, count = 0;
+const tags = [];
 
-    const tag = document.createElement('div');
-    tag.className = 'tag';
-    tag.textContent = i % 2 === 0 ? 'Louis' : 'Employ';
-    tag.style.setProperty('--x', x + 'px');
-    tag.style.setProperty('--y', y + 'px');
-    tag.style.setProperty('--rot', rotFinal + 'deg');
-    tag.style.setProperty('--rot0', rotStart + 'deg');
-    tag.style.animationDelay = (i * STAGGER) + 'ms';
-    container.appendChild(tag);
-  }
-  return N * STAGGER + 550;
-}
-
-function loop(){
-  const spiral = document.getElementById('spiral');
-  spiral.classList.remove('fade-out');
-  const buildTime = buildSpiral(spiral);
+function removeTag(tag){
+  tag.classList.add('fade');
   setTimeout(() => {
-    spiral.classList.add('fade-out');
-    setTimeout(loop, FADE_MS + 200);
-  }, buildTime + HOLD_MS);
+    tag.remove();
+    const idx = tags.indexOf(tag);
+    if(idx !== -1) tags.splice(idx, 1);
+  }, 500);
 }
-loop();
+
+function spawnTag(x, y, angleDeg){
+  const tag = document.createElement('div');
+  tag.className = 'tag';
+  tag.textContent = count % 2 === 0 ? 'Louis' : 'Employ';
+  count++;
+  const jitter = Math.random() * 14 - 7;
+  tag.style.left = x + 'px';
+  tag.style.top = y + 'px';
+  tag.style.setProperty('--rot', (angleDeg + jitter) + 'deg');
+  tag.style.setProperty('--rot0', (angleDeg + Math.random() * 60 - 30) + 'deg');
+  document.body.appendChild(tag);
+  tags.push(tag);
+
+  setTimeout(() => removeTag(tag), FADE_AFTER);
+  if(tags.length > MAX_TAGS) removeTag(tags[0]);
+}
+
+function handleMove(x, y){
+  if(lastX === null){
+    lastX = x; lastY = y;
+    spawnTag(x, y, 0);
+    return;
+  }
+  const dx = x - lastX, dy = y - lastY;
+  const dist = Math.hypot(dx, dy);
+  if(dist >= MIN_DIST){
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+    spawnTag(x, y, angle);
+    lastX = x; lastY = y;
+  }
+}
+
+window.addEventListener('pointermove', e => handleMove(e.clientX, e.clientY));
 </script>
 </body>
 </html>
