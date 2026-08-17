@@ -14,8 +14,7 @@
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{background:#fff;height:100%;overflow:hidden;}
 body{cursor:crosshair;}
-.tag{
-  position:fixed;
+.box{
   width:80px;height:34px;
   display:flex;align-items:center;justify-content:center;
   background:#e3ff3a;
@@ -24,11 +23,25 @@ body{cursor:crosshair;}
   box-shadow:0 3px 8px rgba(0,0,0,0.18);
   font:400 14px/1 "Endless","Helvetica Neue",Arial,sans-serif;
   color:#111;
+}
+.tag{
+  position:fixed;
   pointer-events:none;
   opacity:0;
   animation:pop-in 0.45s cubic-bezier(.2,.9,.3,1) forwards;
   transition:opacity 0.5s ease, transform 0.5s ease;
 }
+.nav-tag{
+  position:fixed;
+  top:28px;
+  text-decoration:none;
+  cursor:pointer;
+  z-index:10;
+  transition:transform 0.2s ease;
+}
+.nav-tag:hover{transform:scale(1.08) rotate(0deg) !important;}
+.nav-tag.left{left:28px;transform:rotate(-4deg);}
+.nav-tag.right{right:28px;transform:rotate(4deg);}
 .tag.fade{
   opacity:0;
   transform:translate(-50%,-50%) scale(0.6) rotate(var(--rot));
@@ -42,6 +55,8 @@ body{cursor:crosshair;}
 </style>
 </head>
 <body>
+<a href="#projects" class="box nav-tag left">projects</a>
+<a href="#contact" class="box nav-tag right">contact</a>
 <div class="hint">move your mouse</div>
 <script>
 const MIN_DIST = 26;
@@ -62,7 +77,7 @@ function removeTag(tag){
 
 function spawnTag(x, y, angleDeg){
   const tag = document.createElement('div');
-  tag.className = 'tag';
+  tag.className = 'box tag';
   tag.textContent = count % 2 === 0 ? 'Louis' : 'Employ';
   count++;
   const jitter = Math.random() * 14 - 7;
