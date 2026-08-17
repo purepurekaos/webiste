@@ -103,11 +103,27 @@ function handleMove(x, y){
   }
 }
 
-window.addEventListener('pointermove', e => handleMove(e.clientX, e.clientY));
-
 // Yes/No boxes: start centered side by side, dodge the cursor
 const yesBox = document.getElementById('yes-box');
 const noBox = document.getElementById('no-box');
+
+// Invisible quiet zone around each button: no trail spawns this close,
+// so the effect doesn't fight the user while they're aiming for it.
+const QUIET_MARGIN = 50;
+function inQuietZone(x, y){
+  for(const box of [yesBox, noBox]){
+    const r = box.getBoundingClientRect();
+    if(x >= r.left - QUIET_MARGIN && x <= r.right + QUIET_MARGIN &&
+       y >= r.top - QUIET_MARGIN && y <= r.bottom + QUIET_MARGIN){
+      return true;
+    }
+  }
+  return false;
+}
+
+window.addEventListener('pointermove', e => {
+  if(!inQuietZone(e.clientX, e.clientY)) handleMove(e.clientX, e.clientY);
+});
 const BOX_W = 80, BOX_H = 34, GAP = 12, EDGE_MARGIN = 20;
 const AVOID_RADIUS = 130;
 const DODGE_COOLDOWN = 350;
@@ -145,8 +161,24 @@ function maybeDodge(box, key, mouseX, mouseY){
 }
 
 window.addEventListener('pointermove', e => {
-  maybeDodge(yesBox, 'yes', e.clientX, e.clientY);
   maybeDodge(noBox, 'no', e.clientX, e.clientY);
+});
+
+function dodgeNow(){
+  lastDodge.no = performance.now();
+  const pos = randomPos();
+  noBox.style.left = pos.x + 'px';
+  noBox.style.top = pos.y + 'px';
+}
+
+// Safety net: if a click/tap ever lands on it anyway, it still runs away.
+noBox.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  dodgeNow();
+});
+noBox.addEventListener('click', e => {
+  e.preventDefault();
+  dodgeNow();
 });
 </script>
 </body>
