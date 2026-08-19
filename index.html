@@ -47,7 +47,21 @@ body{cursor:crosshair;}
   60%{opacity:1;transform:translate(-50%,-50%) scale(1.1) rotate(calc(var(--rot) + 6deg));}
   100%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(var(--rot));}
 }
-.hint{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);font:14px/1 "Endless","Helvetica Neue",Arial,sans-serif;color:#999;letter-spacing:0.5px;pointer-events:none;}
+.hint{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);font:14px/1 "Endless","Helvetica Neue",Arial,sans-serif;color:#999;letter-spacing:0.5px;pointer-events:none;transition:opacity 0.3s ease;}
+.transition-layer{position:fixed;inset:0;pointer-events:none;z-index:50;}
+.path-tag{
+  position:fixed;top:0;left:0;
+  width:22px;height:22px;
+  font-size:13px;
+  opacity:0;
+  offset-distance:0%;
+  offset-rotate:0deg;
+  transition:offset-distance 2.1s cubic-bezier(.3,.7,.2,1), opacity 0.35s ease;
+  will-change:offset-distance;
+}
+.path-tag.run{opacity:1;}
+.path-tag.leave{opacity:0;}
+.fade-out{opacity:0 !important;transition:opacity 0.25s ease;}
 </style>
 </head>
 <body>
@@ -60,6 +74,7 @@ const MAX_TAGS = 70;
 const FADE_AFTER = 2200;
 
 let lastX = null, lastY = null, count = 0;
+let transitionActive = false;
 const tags = [];
 
 function removeTag(tag){
@@ -89,6 +104,7 @@ function spawnTag(x, y, angleDeg){
 }
 
 function handleMove(x, y){
+  if(transitionActive) return;
   if(lastX === null){
     lastX = x; lastY = y;
     spawnTag(x, y, 0);
@@ -147,6 +163,7 @@ function randomPos(){
 }
 
 function maybeDodge(box, key, mouseX, mouseY){
+  if(transitionActive) return;
   const rect = box.getBoundingClientRect();
   const cx = rect.left + rect.width / 2;
   const cy = rect.top + rect.height / 2;
@@ -180,6 +197,60 @@ noBox.addEventListener('click', e => {
   e.preventDefault();
   dodgeNow();
 });
+
+// Yes transition: a compact wave of ascii characters races off along a curvy path, then we navigate.
+const WAVE_CHARS = ['~', '^', '-', 'v', '.', '*', '+', 'o'];
+const TAG_COUNT = 20;
+const TAG_STAGGER = 40;
+const TAG_TRAVEL = 2100;
+
+function buildTravelPath(){
+  const w = window.innerWidth, h = window.innerHeight;
+  return `M -60 ${h * 0.55} C ${w * 0.18} ${h * 0.05}, ${w * 0.32} ${h * 0.95}, ${w * 0.5} ${h * 0.5} S ${w * 0.86} ${h * 0.05}, ${w + 60} ${h * 0.6}`;
+}
+
+function playYesTransition(){
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduceMotion){
+    window.location.href = 'hello.html';
+    return;
+  }
+
+  // Stop all mouse-cursor animations: no more trail spawns or dodging, and
+  // fade out whatever trail tags are already on screen.
+  transitionActive = true;
+  tags.slice().forEach(removeTag);
+
+  yesBox.classList.add('fade-out');
+  noBox.classList.add('fade-out');
+  document.querySelector('.hint').classList.add('fade-out');
+
+  const d = buildTravelPath();
+  const layer = document.createElement('div');
+  layer.className = 'transition-layer';
+  document.body.appendChild(layer);
+
+  for(let i = 0; i < TAG_COUNT; i++){
+    const tag = document.createElement('div');
+    tag.className = 'box path-tag';
+    tag.textContent = WAVE_CHARS[i % WAVE_CHARS.length];
+    tag.style.offsetPath = `path('${d}')`;
+    layer.appendChild(tag);
+
+    setTimeout(() => {
+      tag.classList.add('run');
+      tag.style.offsetDistance = '100%';
+      setTimeout(() => tag.classList.add('leave'), TAG_TRAVEL - 250);
+    }, i * TAG_STAGGER);
+  }
+
+  const total = TAG_TRAVEL + TAG_COUNT * TAG_STAGGER;
+  setTimeout(() => {
+    window.location.href = 'hello.html';
+  }, total);
+}
+
+yesBox.addEventListener('click', playYesTransition);
 </script>
 </body>
 </html>

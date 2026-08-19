@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Louis</title>
+<style>
+@font-face{
+  font-family:"Endless";
+  src:url("fonts/Endless-Regular.ttf") format("truetype");
+  font-weight:400;
+  font-style:normal;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:#fff;height:100%;}
+body{
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+h1{
+  font:400 14vw/1 "Endless","Helvetica Neue",Arial,sans-serif;
+  color:#111;
+  letter-spacing:0.5px;
+  text-align:center;
+  padding:0 20px;
+  opacity:0;
+  transform:scale(0.9);
+  animation:arrive 0.6s cubic-bezier(.2,.8,.2,1) forwards;
+}
+@keyframes arrive{
+  to{opacity:1;transform:scale(1);}
+}
+</style>
+</head>
+<body>
+<h1>HELLOOOOO</h1>
+</body>
+</html>
